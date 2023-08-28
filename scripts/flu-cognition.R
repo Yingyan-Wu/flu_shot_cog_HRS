@@ -14,7 +14,8 @@ p_load("here", "readr", "tidyverse", "magrittr", "plyr", "haven", "labelled",
 source(here::here("scripts", "functions.R"))
 # Directory to Box
 # path_to_box <- "C:/Users/yingyan_wu/Box"
-path_to_box <- "C:/Users/Yingyan Wu/Box"
+# path_to_box <- "C:/Users/Yingyan Wu/Box"
+path_to_box <- "/Users/yingyanwu/Library/CloudStorage/Box-Box/"
 
 #---- Load RAND data ----
 number_waves <- 1:14
