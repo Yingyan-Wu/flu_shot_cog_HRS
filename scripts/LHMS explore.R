@@ -138,7 +138,7 @@ RAND <- read_dta(paste0(path_to_box, "/HRS/RAND_longitudinal/STATA/",
                  col_select = all_of(rand_variables)) 
 colnames(RAND)[1] <- "HHIDPN" #For merging
 
-#---- Age ----
+##---- Age ----
 age_m <- RAND %>% dplyr::select(contains("agem_e")) %>% 
   apply(., 1, impute_ages) %>% t() 
 
@@ -150,14 +150,14 @@ RAND[, paste0("r", number_waves, "age_y_int")] <- floor(age_m/12)
 # Drop RAND age variables
 RAND %<>% dplyr::select(-paste0("r", number_waves, "agem_e"))
 
-#---- gender ----
+##---- gender ----
 RAND %<>% 
   mutate("female" = ifelse(ragender == 2, 1, 0))
 
 #Drop RAND gender variable 
 RAND %<>% dplyr::select(-ragender)
 
-#---- race-eth ----
+##---- race-eth ----
 #Code any hispanic as 1, else 0
 RAND %<>% 
   mutate(hispanic = ifelse(rahispan == 0 | is.na(rahispan), 0, 1), 
@@ -186,7 +186,7 @@ RAND %<>%
   #Drop the RAND rahispan variable (recoded as hispanic) and race variables
   dplyr::select(-c("rahispan", "raracem"))
 
-#---- education ----
+##---- education ----
 #Create education categories
 RAND %<>% 
   mutate("ed_cat" = 
@@ -196,11 +196,23 @@ RAND %<>%
                      raedyrs == 16 ~ 4, 
                      raedyrs > 16 ~ 5)) 
 
+
+
 #---- merge with edu prelim ----
 hrs_edu <- edu_prelim %>%
   select(-contains("LH")) %>%
   left_join(RAND %>% select(HHIDPN, r9age_y_int, female, raceeth, ed_cat, r9wtresp), 
             by = "HHIDPN")
+
+#---- memory score ----
+hrs_mem <- read_sas(paste0(path_to_box, 
+                           "/HRS_MRG/HRSCleanData/ImputedMemoryScores/",
+                           "dpmemimp_sep2022.sas7bdat")) %>%
+  unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
+  mutate_at("HHIDPN", as.numeric)
+hrs_edu_mem <- hrs_edu %>%
+  left_join(hrs_mem, by = "HHIDPN")
+
 
 #---- Table 1 ----
 hrs_edu %>%
@@ -252,7 +264,7 @@ table1 %>% as_flex_table() %>% flextable::save_as_docx(
   path = here::here("output", "tables", "table1_K00.docx"))
 
 # save
-save(hrs_edu, file = here::here("data", "analysis_data", "hrs_edu_K.RData"))
+save(hrs_edu_mem, file = here::here("data", "analysis_data", "hrs_K.RData"))
 
 #---- OLD ----
 # path_to_core <- paste0(path_to_box, "HRS_MRG/HRSRawData/Core/")
