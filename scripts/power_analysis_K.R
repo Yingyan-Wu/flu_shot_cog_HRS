@@ -27,8 +27,8 @@ summary(model1_cog)
 car::Anova(model1_cog)
 
 model1_social <- lmer(memimp ~ social_hs*year + social_sum_08 + (1 + year|HHIDPN),
-                   hrs_long,
-                   control = lmerControl(optimizer = "Nelder_Mead"))
+                      hrs_long,
+                      control = lmerControl(optimizer = "Nelder_Mead"))
 summary(model1_social)
 car::Anova(model1_social)
 
@@ -118,5 +118,5 @@ with(hrs_edu_mem_dem %>% filter(cog_hs < 2), table(expert_dem, useNA = "ifany"))
 # Index proportion: 0.10
 with(hrs_edu_mem_dem %>% filter(cog_hs >= 2), table(expert_dem, useNA = "ifany"))/(1294+150)
 
-
+# RR = 0.667 from the crude model
 0.10/0.15
