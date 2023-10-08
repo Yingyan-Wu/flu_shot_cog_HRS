@@ -213,16 +213,42 @@ hrs_mem <- read_sas(paste0(path_to_box,
 hrs_edu_mem <- hrs_edu %>%
   left_join(hrs_mem, by = "HHIDPN")
 
+#---- Dementia Probabilities ----
+hrs_dem <- read_sas(paste0(path_to_box, 
+                           "/HRS_MRG/HRSCleanData/hrsdementia_2021_1109/",
+                           "hrsdementia_2021_1109.sas7bdat")) %>%
+  unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
+  mutate_at("HHIDPN", as.numeric)
+
+hrs_dem_cleaned <- hrs_dem %>%
+  arrange(HHIDPN, hurd_p) %>%
+  group_by(HHIDPN) %>%
+  slice_tail()
+summary(hrs_dem_cleaned)
+length(unique(hrs_dem_cleaned$HHIDPN))
+
+hrs_edu_mem_dem <- hrs_edu_mem %>%
+  left_join(hrs_dem_cleaned, by = "HHIDPN")
 
 #---- Table 1 ----
-hrs_edu %>%
+hrs_edu_mem_dem %>%
   filter(r9age_y_int > 50) %>% nrow()
-hrs_edu %>%
+
+hrs_edu_mem_dem %>%
+  filter(r9age_y_int > 50 &
+           (!is.na(memimp08) |!is.na(memimp10)|!is.na(memimp12)|
+              !is.na(memimp14)|!is.na(memimp16)|!is.na(memimp18))) %>%
+  nrow()
+hrs_edu_mem_dem %>%
+  filter(r9age_y_int > 50 & (!is.na(hurd_dem)|!is.na(expert_dem)|
+                               !is.na(lasso_dem))) %>% nrow()
+
+hrs_edu_mem_dem %>%
   filter(r9age_y_int > 50 & !is.na(r9wtresp)) %>% nrow()
-hrs_edu_svy <- hrs_edu %>%
+hrs_edu_svy <- hrs_edu_mem_dem %>%
   filter(r9age_y_int > 50 & !is.na(r9wtresp)) %>%
   select(r9age_y_int, female, raceeth, ed_cat, r9wtresp, cog_hs, social_hs,
-         social_sum_08, cog_sum_08) %>%
+         social_sum_08, cog_sum_08, memimp08,) %>%
   labelled::set_variable_labels(
     r9age_y_int = "Age in years at wave 9 (2008)",
     female = "Female (%)",
@@ -231,7 +257,8 @@ hrs_edu_svy <- hrs_edu %>%
     cog_hs = "Number of cognitive activities in High school",
     social_hs = "Number of social activities in High school",
     social_sum_08 = "Number of social activities in 2008",
-    cog_sum_08 = "Number of cognitive activities in 2008") %>%
+    cog_sum_08 = "Number of cognitive activities in 2008",
+    memimp08 = "Imputed memory score in 2008") %>%
   labelled::drop_unused_value_labels() %>%
   labelled::set_value_labels(female = c("Yes" = 1, "No" = 0),
                              ed_cat = c("Less than high school" = 1, "High school" = 2, 
@@ -264,7 +291,7 @@ table1 %>% as_flex_table() %>% flextable::save_as_docx(
   path = here::here("output", "tables", "table1_K00.docx"))
 
 # save
-save(hrs_edu_mem, file = here::here("data", "analysis_data", "hrs_K.RData"))
+save(hrs_edu_mem_dem, file = here::here("data", "analysis_data", "hrs_K.RData"))
 
 #---- OLD ----
 # path_to_core <- paste0(path_to_box, "HRS_MRG/HRSRawData/Core/")
