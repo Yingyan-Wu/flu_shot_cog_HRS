@@ -250,6 +250,10 @@ table1 %>% as_flex_table()
 
 table1 %>% as_flex_table() %>% flextable::save_as_docx(
   path = here::here("output", "tables", "table1_K00.docx"))
+
+# save
+save(hrs_edu, file = here::here("data", "analysis_data", "hrs_edu_K.RData"))
+
 #---- OLD ----
 # path_to_core <- paste0(path_to_box, "HRS_MRG/HRSRawData/Core/")
 # read_hrs_core <- function(year, section){
