@@ -1,12 +1,17 @@
+#---- Package loading + options ----
+rm(list = ls())
 
-p_load("lme4")
+if (!require("pacman")){
+  install.packages("pacman", repos='http://cran.us.r-project.org')
+}
+p_load("here", "tidyverse", "magrittr", "plyr", "lme4")
 # detectable effect analysis
 
 options(scipen = 999)
 #---- Aim 2 cognition----
 load(here::here("data", "analysis_data", "hrs_K.RData"))
 years <- str_sub(as.character(seq(2008, 2018, 2)), start = 3)
-hrs_long <- hrs_edu_mem %>%
+hrs_long <- hrs_edu_mem_dem %>%
   filter(r9age_y_int > 50) %>%
   select(HHIDPN, cog_hs, cog_sum_08, social_hs, social_sum_08, paste0("memimp", years)) %>%
   pivot_longer(cols = !HHIDPN:social_sum_08,
@@ -16,9 +21,9 @@ hrs_long <- hrs_edu_mem %>%
 
 model0 <- lmer(memimp ~ year + (1 + year|HHIDPN), data = hrs_long)
 summary(model0)
-# SE of slope = 0.004
+# SE of slope = 0.0004
 # varratio
-# 0.042653/0.0004144^2
+# 0.044144/0.0004654^2
 
 model1_cog <- lmer(memimp ~ cog_hs*year + cog_sum_08 + (1 + year|HHIDPN),
                    hrs_long,
@@ -35,6 +40,19 @@ car::Anova(model1_social)
 p_load(sjPlot)
 tab_model(list(model0, model1_cog, model1_social), show.ci = F)
 
+
+# social_hs
+# any: 6892 vs. 5456
+# social_sum_08
+# any: 4162 vs. 4199
+
+table(hrs_edu_mem_dem$cog_hs < 2)
+# cog_hs
+# >=2: 4290 vs. < 2 8202
+table(hrs_edu_mem_dem$cog_sum_08 < 2)
+# cog_sum_08
+# any: 3168 vs. 498
+
 power.long <- function(n, d, C, vare, varu, alpha){
   ncp <- d/sqrt(4*(vare/(varu*C)+1)/n)
   crit <- qt(1-alpha/2, n-2)
@@ -50,12 +68,12 @@ C <- sum(ct[1:length(x),]^2)
 C
 
 # for cog
-hrs_edu_mem %>% filter(r9age_y_int > 50 & 
+hrs_edu_mem_dem %>% filter(r9age_y_int > 50 & 
                          (!is.na(cog_hs) | !is.na(cog_sum_08)) &
                          (!is.na(memimp08) |!is.na(memimp10)|!is.na(memimp12)|
                             !is.na(memimp14)|!is.na(memimp16)|!is.na(memimp18))) %>% nrow()
 # 9271
-hrs_edu_mem %>% filter(r9age_y_int > 50 & 
+hrs_edu_mem_dem %>% filter(r9age_y_int > 50 & 
                          (!is.na(social_hs) | !is.na(social_sum_08)) &
                          (!is.na(memimp08) |!is.na(memimp10)|!is.na(memimp12)|
                             !is.na(memimp14)|!is.na(memimp16)|!is.na(memimp18))) %>% nrow()
@@ -84,20 +102,20 @@ aim2 %<>%
 aim2 %>% print(n = Inf)
 
 # Social activities
-power.long(9470, 0.000237/0.004, C, seu^2*6, seu^2, 0.05)
-power.long(9470, 0.000237/0.004, C, seu^2*7, seu^2, 0.05)
-power.long(9470, 0.000239/0.004, C, seu^2*8, seu^2, 0.05)
-power.long(9470, 0.000240/0.004, C, seu^2*9, seu^2, 0.05)
-power.long(9470, 0.000241/0.004, C, seu^2*10, seu^2, 0.05)
-power.long(9470, 0.000242/0.004, C, seu^2*11, seu^2, 0.05)
-power.long(9470, 0.000243/0.004, C, seu^2*12, seu^2, 0.05)
+power.long(122, 0.00211/0.004, C, seu^2*6, seu^2, 0.05)
+power.long(122, 0.00211/0.004, C, seu^2*7, seu^2, 0.05)
+power.long(122, 0.00212/0.004, C, seu^2*8, seu^2, 0.05)
+power.long(122, 0.00213/0.004, C, seu^2*9, seu^2, 0.05)
+power.long(122, 0.00214/0.004, C, seu^2*10, seu^2, 0.05)
+power.long(122, 0.00215/0.004, C, seu^2*11, seu^2, 0.05)
+power.long(122, 0.00216/0.004, C, seu^2*12, seu^2, 0.05)
 # The values for beta comes from various round of running the power.long
 aim2 <- tibble(
-  beta = c(0.000237, 0.000237, 0.000239, 0.000240, 0.000241, 0.000242, 0.000243),
+  beta = c(0.00211, 0.00211, 0.00212, 0.00213, 0.00214, 0.00215, 0.00216),
   # beta = seq(0.0002, 0.00025, by = 0.00001),
   d = beta/seu, # from a study
   varratio = 6:12,
-  n = 9470,
+  n = 122,
   vare = varu*varratio,
   C = C)
 
@@ -120,3 +138,14 @@ with(hrs_edu_mem_dem %>% filter(cog_hs >= 2), table(expert_dem, useNA = "ifany")
 
 # RR = 0.667 from the crude model
 0.10/0.15
+
+# Using the middle case of cog sum and cog hs
+with(hrs_edu_mem_dem, table(cog_sum_08, useNA = "ifany"))
+with(hrs_edu_mem_dem %>% filter(cog_sum_08 >= 4), table(cog_hs < 2, useNA = "ifany"))
+# 1336 for cog_sum_08 >= 4
+#Ref proportion 0.1192308
+with(hrs_edu_mem_dem %>% filter(cog_sum_08 >= 4 & cog_hs < 2), 
+     table(expert_dem, useNA = "ifany"))/(458+62)
+# Index proportion: 0.06730769
+with(hrs_edu_mem_dem %>% filter(cog_sum_08 >= 4 & cog_hs >= 2), 
+     table(expert_dem, useNA = "ifany"))/(291+21)
