@@ -207,7 +207,8 @@ hrs_edu <- edu_prelim %>%
 #---- memory score ----
 hrs_mem <- read_sas(paste0(path_to_box, 
                            "/HRS_MRG/HRSCleanData/ImputedMemoryScores/",
-                           "dpmemimp_sep2022.sas7bdat")) %>%
+                           "dpmemimp_feb2023.sas7bdat")) %>%
+                           # "dpmemimp_sep2022.sas7bdat")) %>%
   unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
   mutate_at("HHIDPN", as.numeric)
 hrs_edu_mem <- hrs_edu %>%
@@ -215,7 +216,8 @@ hrs_edu_mem <- hrs_edu %>%
 
 #---- Dementia Probabilities ----
 hrs_dem <- read_sas(paste0(path_to_box, 
-                           "/HRS_MRG/HRSCleanData/hrsdementia_2021_1109/",
+                           "/HRS_MRG/HRSCleanData/“，
+                           ”hrsdementia_2021_1109/",
                            "hrsdementia_2021_1109.sas7bdat")) %>%
   unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
   mutate_at("HHIDPN", as.numeric)
