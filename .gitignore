@@ -2,9 +2,12 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
 
 # folders
 data/
 output/
+manuscripts/
+
 
 # files
