@@ -20,8 +20,13 @@ source(here::here("scripts", "functions.R"))
 number_waves <- 1:15
 rand_variables <- c("hhidpn", "ragender", "raracem", "rahispan", "rabmonth", 
                     "rabyear", "rabdate", "radmonth", "radyear", "raddate",
+                    "radage_y",
+                    # Response indicator
+                    paste0("inw", number_waves),
+                    paste0("r", number_waves, "iwbeg"),# Interview begin dates
                     paste0("r", number_waves, "agem_e"), "raedyrs", 
                     paste0("r", number_waves, "iwstat"),
+                    paste0("r", number_waves, "wtresp"),
                     "raedegrm", 
                     paste0("r", 3:15, "flusht"),
                     paste0("r", number_waves, "mstat"),
@@ -62,7 +67,8 @@ colnames(RAND)[1] <- "HHIDPN" #For merging
 memimp <- read_sas(here::here("data", "raw_data", "imputed_memory_scores", 
                               "dpmemimp_jan2024.sas7bdat")) %>%
   unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
-  mutate_at("HHIDPN", as.numeric) 
+  mutate_at("HHIDPN", as.numeric) %>%
+  select(-contains("95"))
 
 # Mapping years to waves
 HRS_years <- seq(1996, 2020, by = 2) # Years
@@ -70,7 +76,7 @@ waves <- (as.numeric(HRS_years) - 2000)/2 + 5  #should be 3:15
 # Function to rename variables
 rename_to_rwxxx <- function(var_names, years, waves) {
   # Create lookup for year-to-wave
-  year_wave_map <- setNames(waves, substr(year_to_wave, 3, 4))
+  year_wave_map <- setNames(waves, substr(years, 3, 4))
   # Pattern match and replace
   str_replace(var_names, "(\\D+)(\\d{2})$", function(x) {
     prefix <- str_match(x, "(\\D+)")[, 1]
@@ -84,6 +90,9 @@ memimp %<>%
   # Change the name to rwmemimp etc.
   dplyr::rename_at(vars(contains(c("memimp", "dementpimp"))),
                    ~rename_to_rwxxx(.x, HRS_years, waves))
+
+# Sanity check
+colnames(memimp)
 
 demprob <- read_sas(here::here("data", "raw_data", "power_hrsdementia",
                                "hrsdementia_2021_1109.sas7bdat")) %>%
@@ -117,6 +126,63 @@ with(demprob %>%
 hrs <- RAND %>% left_join(memimp, by = "HHIDPN") %>% 
   left_join(demprob_wide_expert, by = "HHIDPN")
 
+#---- in interview ----
+hrs %<>%
+  rename_with(~ str_replace(.x, "^inw(\\d+)$", "r\\1inw"), starts_with("inw"))
+# # Sanity check
+# colnames(hrs %>% select(contains("inw")))
+# # Check response indicator and interview dates
+# hrs %>% select(contains("inw")) %>%
+#   apply(., 2, table, useNA = "ifany")
+# 
+# for (wave in 3:15){
+#   print(hrs %>% filter(!!paste0("r", wave, "inw") == 0 & 
+#                    !is.na(paste0("r", wave, "iwbeg"))) %>% nrow())
+# }
+
+# Interview dates
+hrs %<>%
+  mutate(across(c(contains("iwbeg"), raddate, rabdate), 
+                ~as.Date(.x, origin = "1960-01-01")))
+
+# Exact age at waves (to calculate exact follow up time)
+for (w in 1:15){
+  hrs%<>%
+    mutate(!!paste0("r", w, "fu_age") := # compare to birthdate
+             round(interval(start = rabdate,
+                            end = !!sym(paste0("r", w, "iwbeg"))) /
+                     duration(num = 1, units = "years"), 1))
+}
+
+# table(hrs$r3agem_e/12)
+# table(hrs$r3fu_age)
+
+#---- Death ----
+# Create death indicator by wave
+for (w in 3:15){
+  hrs %<>%
+    mutate(!!paste0("r", w, "dead") := 
+             case_when(!!sym(paste0("r", w, "iwstat")) %in% c(5, 6) ~ 1,
+                       !!sym(paste0("r", w, "iwstat")) == 9 ~ NA_real_, # NR, DK if alive or died
+                       TRUE ~ 0))
+}
+
+# Sanity check
+hrs %>% select(ends_with("dead")) %>% apply(., 2, table, useNA = "ifany")
+with(hrs, table(dead96, r3dead, useNA = "ifany"))
+
+for (wave in 3:15){
+  print(with(hrs, table(get(paste0("r", wave, "inw")), 
+                        get(paste0("r", wave, "iwstat")), useNA = "ifany")))
+}
+
+for (wave in 3:15){
+  print(with(hrs, table(get(paste0("r", wave, "dead")), 
+                        !is.na(raddate), useNA = "ifany")))
+}
+
+
+
 # Covariates:
 # Time-independent: age at baseline, sex/gender, race/ethnicity, education
 # Time-dependent: marital status, depressive symptoms, household income, ADLs 
@@ -124,6 +190,7 @@ hrs <- RAND %>% left_join(memimp, by = "HHIDPN") %>%
 # cancer and lung disease.
 
 #---- Age ----
+# PENDING: clean age with r3fu_age
 age_m <- hrs %>% dplyr::select(contains("agem_e")) %>% 
   apply(., 1, impute_ages) %>% t() 
 
@@ -535,8 +602,11 @@ hrs %>% select(starts_with("flusht")) %>%
 # summarytools::freq(flusht_wide_2_3_8$prop_flusht)
 
 #---- Select the variables ----
-hrs_samp <- hrs %>%
-  select(HHIDPN,
+hrs_selected <- hrs %>%
+  select(HHIDPN, raddate,
+         contains("inw"),
+         contains("dead"),
+         contains("wtresp"),
          contains("age_y_int"),
          female, raceeth, raedyrs, ed_cat, 
          contains(c("mstat_2cat", "income_pp", "insurance_2cat")),
@@ -549,6 +619,6 @@ hrs_samp <- hrs %>%
 
 
 #---- Save the data ----
-saveRDS(hrs, here::here("data", "analysis_data", "hrs.rds"))
-saveRDS(hrs_samp, here::here("data", "analysis_data", "hrs_samp.rds"))
+saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
+saveRDS(hrs_selected, here::here("data", "analysis_data", "hrs_selected.rds"))
 
