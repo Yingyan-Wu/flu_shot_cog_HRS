@@ -154,9 +154,6 @@ for (w in 1:15){
                      duration(num = 1, units = "years"), 1))
 }
 
-# table(hrs$r3agem_e/12)
-# table(hrs$r3fu_age)
-
 #---- Death ----
 # Create death indicator by wave
 for (w in 3:15){
@@ -181,7 +178,10 @@ for (wave in 3:15){
                         !is.na(raddate), useNA = "ifany")))
 }
 
-
+for (wave in 3:15){
+  print(with(hrs, table(get(paste0("r", wave, "dead")), 
+                        get(paste0("r", wave, "iwstat")), useNA = "ifany")))
+}
 
 # Covariates:
 # Time-independent: age at baseline, sex/gender, race/ethnicity, education
@@ -190,18 +190,42 @@ for (wave in 3:15){
 # cancer and lung disease.
 
 #---- Age ----
-# PENDING: clean age with r3fu_age
 age_m <- hrs %>% dplyr::select(contains("agem_e")) %>% 
   apply(., 1, impute_ages) %>% t() 
 
 #Exact ages
 hrs[, paste0("r", number_waves, "age_y")] <- age_m/12
-#Ages rounded down to nearest year
-hrs[, paste0("r", number_waves, "age_y_int")] <- floor(age_m/12)
 
 # Drop RAND age variables
 hrs %<>% dplyr::select(-paste0("r", number_waves, "agem_e"))
 rm(age_m)
+
+# Use fu_age for exact age, unless it's missing, then use computed age
+for (w in 3:15){
+  hrs %<>%
+    mutate(!!paste0("r", w, "age_v2") := 
+             case_when(!is.na(!!sym(paste0("r", w, "fu_age"))) ~ 
+                          !!sym(paste0("r", w, "fu_age")),
+                       TRUE ~ !!sym(paste0("r", w, "age_y"))))
+}
+
+# # Sanity check
+# hrs %>%
+#   select(contains("age_v2")) %>%
+#   apply(., 2, summary)
+# 
+# # Check if participants have the same age at different waves
+# hrs %>%
+#   select(HHIDPN, contains("age_v2")) %>%
+#   pivot_longer(cols = contains("age_v2"),
+#                names_to = "wave", values_to = "age", 
+#                names_pattern = "r(\\d+)age_v2") %>%
+#   mutate(newid = paste0(HHIDPN, age)) %>%
+#   group_by(newid) %>%
+#   count() %>% view()
+# 
+# hrs %>% select(HHIDPN, contains("age_v2")) %>% filter(HHIDPN == "32570030")
+# hrs %>% select(HHIDPN, contains("age_v2")) %>% filter(HHIDPN == "32731010")
 
 #---- Sex/gender ----
 hrs %<>% 
@@ -218,10 +242,10 @@ hrs %<>%
          black = ifelse(raracem == 2 & hispanic == 0, 1, 0),
          other = ifelse(raracem == 3 & hispanic == 0, 1, 0),
          unknown_race_eth = ifelse(is.na(raracem) & hispanic == 0, 1, 0)) %>%
-  mutate(raceeth = case_when(hispanic == 0 & white == 1 ~ "Non-Hispanic White",
-                             hispanic == 0 & black == 1 ~ "Non-Hispanic Black",
-                             hispanic == 1 ~ "Hispanic",
-                             other == 1 ~ "Other"))
+  mutate(raceeth = case_when(hispanic == 0 & white == 1 ~ "1", # Non-Hispanic White
+                             hispanic == 0 & black == 1 ~ "2", # Non-Hispanic Black
+                             hispanic == 1 ~ "3", # Hispanic
+                             other == 1 ~ "4")) # Other
 
 # #Sanity check
 # table(hrs$hispanic, hrs$rahispan, useNA = "ifany")
@@ -330,7 +354,7 @@ hrs %<>%
 # Sanity check
 with(hrs, table(r1flonex, r1flone, useNA = "ifany"))
 hrs %>%
-  select(paste0("r", 1:15, "flone"),) %>%
+  select(paste0("r", 1:15, "flone")) %>%
   apply(., 2, table, useNA = "ifany")
 
 #---- Health conditions ----
@@ -605,18 +629,21 @@ hrs %>% select(starts_with("flusht")) %>%
 hrs_selected <- hrs %>%
   select(HHIDPN, raddate,
          contains("inw"),
-         contains("dead"),
+         contains("iwstat"),
+         ends_with("dead"),
          contains("wtresp"),
-         contains("age_y_int"),
+         contains("age_v2"),
          female, raceeth, raedyrs, ed_cat, 
-         contains(c("mstat_2cat", "income_pp", "insurance_2cat")),
-         contains(c("smoken", "cesd", "flone")),
+         contains(c("income_pp", "itot", "hhres")),
+         contains(c("mstat", "insurance")),
+         contains(c("smoken", "cesd", "flone")), -(contains("flonex")),
          contains(c("hibpe", "diabe", "cancre", "stroke", "hearte", "lunge")),
-         contains(c("adl_2cat", "iadl_2cat")),
+         contains(c("adl", "iadl")),
          contains("flusht"),
          contains(c("memimp", "expert_p", "expert_dem"))
-  )
-
+  ) %>%
+  # Change the names of household variable (h) to individual variable (r)
+  rename_at(vars(contains(c("hhres", "itot"))), ~str_replace(.x, "h", "r")) # This will only replace the first h letter
 
 #---- Save the data ----
 saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
