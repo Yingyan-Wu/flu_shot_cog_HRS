@@ -625,8 +625,22 @@ hrs %>% select(starts_with("flusht")) %>%
 # 
 # summarytools::freq(flusht_wide_2_3_8$prop_flusht)
 
-#---- Select the variables ----
+#---- Dropping people ----
+##---- 1. Dropping those who still missing age at e every wave ----
+table(hrs$female, useNA = "ifany")
+hrs %>%
+  select(contains("age_v2")) %>%
+  apply(., 2, summary)
+hrs %>% filter(r3age_v2 < 25) %>% select(contains(c("age_v2", "memimp", "wtresp"))) %>% view()
+with(hrs, table(is.na(rabdate))) # n = 1 missing age
+
 hrs_selected <- hrs %>%
+  filter(!is.na(rabdate))
+  
+hrs %>% filter(is.na(rabdate)) %>% select(HHIDPN)
+
+#---- Select the variables ----
+hrs_selected <- hrs_selected %>%
   select(HHIDPN, raddate,
          contains("inw"),
          contains("iwstat"),
