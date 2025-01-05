@@ -65,7 +65,7 @@ hrs_forimp_long <- hrs_forimp %>%
 impute_data <- hrs_forimp_long %>%
   # only impute for observations when participants are alive and eligible in the sample
   filter(iwstat %in% c(1, 4)) %>%
-  select(-dead, -inw, -age_v2, -fu_year)
+  select(-dead, -inw, -age_v2, -wave)
 DataExplorer::plot_missing(impute_data %>% select(-HHIDPN))
 missing_summary <- DataExplorer::profile_missing(impute_data %>% 
                                                    select(-HHIDPN)) %>%
