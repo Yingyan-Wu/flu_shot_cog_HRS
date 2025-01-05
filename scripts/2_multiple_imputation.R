@@ -22,7 +22,7 @@ hrs_selected <- readRDS(here::here("data", "analysis_data", "hrs_selected.rds"))
 colnames(hrs_selected)
 # Baseline: wave 3, yr 1996
 baseline_vars <- c("r3age_v2", "female", "raceeth", "raedyrs")
-tv_vars <- c("age_v2", "mstat", 
+tv_vars <- c("age_v2", "mstat", "flusht",
              # income pp
              "itot", "hhres",
              "insurance_2cat", "smoken", "cesd", "flone",
@@ -37,9 +37,13 @@ tv_vars <- c("age_v2", "mstat",
              # Outcome
              "memimp")
 
+flusht_waves <- seq(3, 15, by = 2)
+
 hrs_forimp <- hrs_selected %>%
   select(-contains(c("adl_2cat", "iadl_2cat", "mstat_2cat"))) %>% # drop ADL and IADL derived variables
-  select(HHIDPN, all_of(baseline_vars), contains(tv_vars))
+  select(HHIDPN, all_of(baseline_vars),
+         # only select waves for flushot questions for tv_vars
+         paste0("r", as.vector(outer(flusht_waves, tv_vars, "paste0"))))
 
 hrs_forimp_long <- hrs_forimp %>%
   pivot_longer(cols = contains(tv_vars),
@@ -47,9 +51,7 @@ hrs_forimp_long <- hrs_forimp %>%
                names_pattern = "r(\\d+)(.*)") %>%
   left_join(hrs_forimp %>% select(HHIDPN, r3age_v2), by = "HHIDPN") %>%
   mutate(wave = as.numeric(wave),
-         fu_year = age_v2 - r3age_v2) %>%
-  # start from wave 3 and with an applicable iwstat
-  filter(wave >= 3 & iwstat != 0) 
+         fu_year = age_v2 - r3age_v2)
 
 # # # Check iwstat
 # hrs_forimp_long %>%
@@ -63,7 +65,7 @@ hrs_forimp_long <- hrs_forimp %>%
 impute_data <- hrs_forimp_long %>%
   # only impute for observations when participants are alive and eligible in the sample
   filter(iwstat %in% c(1, 4)) %>%
-  select(-dead, -inw, -age_v2, -wave)
+  select(-dead, -inw, -age_v2, -fu_year)
 DataExplorer::plot_missing(impute_data %>% select(-HHIDPN))
 missing_summary <- DataExplorer::profile_missing(impute_data %>% 
                                                    select(-HHIDPN)) %>%
@@ -157,6 +159,7 @@ cluster_var
 
 ##---- Run imputation ----
 tictoc::tic()
+# pending on change maxit to 10 and m = 10
 imp_pmm_10 <- mice::mice(impute_data, m = 10, maxit = 10, 
                          predictorMatrix = predM1,
                          method = impM1,
@@ -165,14 +168,20 @@ imp_pmm_10 <- mice::mice(impute_data, m = 10, maxit = 10,
                          seed = 62283)
 tictoc::toc()
 # m=1, maxit=1: 3.74min
+# m = 2, maxit = 1: 5.93 min
 # m = 10, maxit = 10: 6.22h
+save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10.RData"))
 
-
+load(here::here("data", "analysis_data", "imp_pmm_10.RData"))
 imp_pmm_10$loggedEvents %>% view() # dropped iwstat for a bunch of tv vars
 plot(imp_pmm_10)
-# densityplot(imp_pmm_10) # very similar distributions
-
-save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10.RData"))
+# # Look at density plots by individual variables
+# cont_vars
+# densityplot(imp_pmm_10, ~raedyrs) # very similar distributions
+# densityplot(imp_pmm_10, ~itot) 
+# densityplot(imp_pmm_10, ~hhres) 
+# densityplot(imp_pmm_10, ~wtresp) 
+# densityplot(imp_pmm_10, ~memimp)
 
 #---- Stack imputed dataset ----
 load(here::here("data", "analysis_data", "imp_pmm_10.RData"))
@@ -234,7 +243,8 @@ imp_pmm_stacked %<>%
          adl_2cat = case_when(adl6a == 0 ~ 0,
                               adl6a > 0 ~ 1),
          iadl_2cat = case_when(iadl5a == 0 ~ 0,
-                               iadl5a > 0 ~ 1))
+                               iadl5a > 0 ~ 1)) %>%
+  mutate(across(all_of(c(binary_vars, cat_vars)), \(x) as.numeric(as.character(x))))
 
 #---- Save imputed data ----
 saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked.RDS"))
