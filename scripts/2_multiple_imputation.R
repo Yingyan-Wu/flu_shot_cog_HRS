@@ -66,6 +66,7 @@ hrs_forimp_long <- hrs_forimp %>%
 #---- Check the missingness ----
 impute_data <- hrs_forimp_long %>%
   # only impute for observations when participants are alive and eligible in the sample
+  # filter(iwstat == 1) %>%
   filter(iwstat %in% c(1, 4)) %>%
   select(-dead, -inw, -age_v2, -wave)
 # DataExplorer::plot_missing(impute_data %>% select(-HHIDPN))
@@ -184,8 +185,10 @@ tictoc::toc()
 # m = 2, maxit = 1: 6.47 min
 # m = 10, maxit = 10: ~9h
 save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10.RData"))
+# save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_iwstat1.RData"))
 
 load(here::here("data", "analysis_data", "imp_pmm_10.RData"))
+                # "imp_pmm_10_iwstat1.RData"))
 imp_pmm_10$loggedEvents %>% view() # dropped iwstat for a bunch of tv vars
 plot(imp_pmm_10)
 # # Look at density plots by individual variables
@@ -198,10 +201,11 @@ plot(imp_pmm_10)
 
 #---- Stack imputed dataset ----
 load(here::here("data", "analysis_data", "imp_pmm_10.RData"))
-# imp_num = 10
+# "imp_pmm_10_iwstat1.RData"))
+imp_num = 10
 imp_temp <- list()
 for (i in 1:2){
-# for (i in 1:imp_num){
+  # for (i in 1:imp_num){
   # Baseline/time invarying vars
   temp_wide <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>%
     select(HHIDPN, baseline_vars) %>% unique()
@@ -214,8 +218,9 @@ for (i in 1:2){
                 select(HHIDPN, fu_year, wave, iwstat, inw, dead, age_v2),
               by = c("HHIDPN", "fu_year", "iwstat")) %>%
     # also add back iwstat 5:7 and 9 ~ dead, drop sample or unknown
-    rbind(., hrs_forimp_long %>% select(-all_of(baseline_vars)) 
-          %>% filter(!iwstat %in% c(1, 4)))
+    rbind(., hrs_forimp_long %>% select(-all_of(baseline_vars)) %>%
+            filter(!iwstat %in% c(1, 4)))
+            # filter(!iwstat %in% c(1)))
   
   imp_temp[[i]] <- temp_long %>%
     left_join(temp_wide, by = "HHIDPN")

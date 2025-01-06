@@ -71,6 +71,7 @@ memimp <- read_sas(here::here("data", "raw_data", "imputed_memory_scores",
   select(-contains("95"))
 
 # Mapping years to waves
+# memimp start in 1996
 HRS_years <- seq(1996, 2020, by = 2) # Years
 waves <- (as.numeric(HRS_years) - 2000)/2 + 5  #should be 3:15 
 # Function to rename variables
@@ -154,9 +155,24 @@ for (w in 1:15){
                      duration(num = 1, units = "years"), 1))
 }
 
+#---- IWSTAT ----
+# Check cross wave to overturn unknown status (iwstat = 9)
+hrs %>% select(contains("iwstat")) %>%
+  apply(., 2, table, useNA = "ifany")
+# Check these 2 observations with iwstat = 9
+hrs %>% select(HHIDPN, contains("iwstat")) %>%
+  filter(r8iwstat == 9 | r9iwstat == 9) %>% as.data.frame()
+# Since this person attended wave 10-wave 12, change r8 and r9 iwstat to 4!
+
+hrs %<>%
+  mutate(r8iwstat = case_when(HHIDPN == "74494020" & r8iwstat == 9 ~ 4,
+                              TRUE ~ r8iwstat),
+         r9iwstat = case_when(HHIDPN == "74494020" & r9iwstat == 9 ~ 4,
+                              TRUE ~ r9iwstat))
+
 #---- Death ----
 # Create death indicator by wave
-for (w in 3:15){
+for (w in 1:15){
   hrs %<>%
     mutate(!!paste0("r", w, "dead") := 
              case_when(!!sym(paste0("r", w, "iwstat")) %in% c(5, 6) ~ 1,
@@ -166,19 +182,18 @@ for (w in 3:15){
 
 # Sanity check
 hrs %>% select(ends_with("dead")) %>% apply(., 2, table, useNA = "ifany")
-with(hrs, table(dead96, r3dead, useNA = "ifany"))
 
-for (wave in 3:15){
+for (wave in 1:15){
   print(with(hrs, table(get(paste0("r", wave, "inw")), 
                         get(paste0("r", wave, "iwstat")), useNA = "ifany")))
 }
 
-for (wave in 3:15){
+for (wave in 1:15){
   print(with(hrs, table(get(paste0("r", wave, "dead")), 
                         !is.na(raddate), useNA = "ifany")))
 }
 
-for (wave in 3:15){
+for (wave in 1:15){
   print(with(hrs, table(get(paste0("r", wave, "dead")), 
                         get(paste0("r", wave, "iwstat")), useNA = "ifany")))
 }
@@ -201,7 +216,7 @@ hrs %<>% dplyr::select(-paste0("r", number_waves, "agem_e"))
 rm(age_m)
 
 # Use fu_age for exact age, unless it's missing, then use computed age
-for (w in 3:15){
+for (w in 1:15){
   hrs %<>%
     mutate(!!paste0("r", w, "age_v2") := 
              case_when(!is.na(!!sym(paste0("r", w, "fu_age"))) ~ 
@@ -631,7 +646,6 @@ table(hrs$female, useNA = "ifany")
 hrs %>%
   select(contains("age_v2")) %>%
   apply(., 2, summary)
-hrs %>% filter(r3age_v2 < 25) %>% select(contains(c("age_v2", "memimp", "wtresp"))) %>% view()
 with(hrs, table(is.na(rabdate))) # n = 1 missing age
 
 hrs_selected <- hrs %>%
