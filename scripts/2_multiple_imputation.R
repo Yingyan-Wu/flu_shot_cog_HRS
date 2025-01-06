@@ -36,13 +36,15 @@ tv_vars <- c("age_v2", "mstat", "flusht",
              "inw", "dead", "iwstat",
              # Outcome
              "memimp")
-
+tv_cov <- tv_vars[!tv_vars %in% c("flusht", "memimp")]
 flusht_waves <- seq(3, 15, by = 2)
 
 hrs_forimp <- hrs_selected %>%
   select(-contains(c("adl_2cat", "iadl_2cat", "mstat_2cat"))) %>% # drop ADL and IADL derived variables
   select(HHIDPN, all_of(baseline_vars),
          # only select waves for flushot questions for tv_vars
+         # and 1 wave before flushot questions for the first wave of flushot
+         paste0("r", 2, tv_cov),
          paste0("r", as.vector(outer(flusht_waves, tv_vars, "paste0"))))
 
 hrs_forimp_long <- hrs_forimp %>%
@@ -66,12 +68,23 @@ impute_data <- hrs_forimp_long %>%
   # only impute for observations when participants are alive and eligible in the sample
   filter(iwstat %in% c(1, 4)) %>%
   select(-dead, -inw, -age_v2, -wave)
-DataExplorer::plot_missing(impute_data %>% select(-HHIDPN))
+# DataExplorer::plot_missing(impute_data %>% select(-HHIDPN))
 missing_summary <- DataExplorer::profile_missing(impute_data %>% 
                                                    select(-HHIDPN)) %>%
   mutate(pct_missing = pct_missing*100) %>%
   arrange(pct_missing) %>%
   print(n = Inf)
+
+# Need to add back flusht and memimp missingness from wave 2
+with(hrs_forimp_long, table(wave, fu_year < 0, useNA = "ifany")) # wave 2 ~ fu_year < 0
+impute_data %>% filter(fu_year < 0) %>% nrow()
+colSums(is.na(impute_data %>% filter(fu_year < 0) %>% select(flusht, memimp)))
+
+missing_summary %<>%
+  mutate(num_missing = case_when(
+    feature %in% c("flusht", "memimp") ~ num_missing - 20941,
+    TRUE ~ num_missing),
+    pct_missing = num_missing/nrow(impute_data)*100)
 
 writexl::write_xlsx(missing_summary, 
                     here::here("output", "tables", "missing_summary.xlsx"))
@@ -159,8 +172,8 @@ cluster_var
 
 ##---- Run imputation ----
 tictoc::tic()
-# pending on change maxit to 10 and m = 10
-imp_pmm_10 <- mice::mice(impute_data, m = 10, maxit = 10, 
+# PENDING on change it 10
+imp_pmm_10 <- mice::mice(impute_data, m = 2, maxit = 1,
                          predictorMatrix = predM1,
                          method = impM1,
                          imputationFunction = imputationFunction,
@@ -168,8 +181,8 @@ imp_pmm_10 <- mice::mice(impute_data, m = 10, maxit = 10,
                          seed = 62283)
 tictoc::toc()
 # m=1, maxit=1: 3.74min
-# m = 2, maxit = 1: 5.93 min
-# m = 10, maxit = 10: 6.22h
+# m = 2, maxit = 1: 6.47 min
+# m = 10, maxit = 10: ~9h
 save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10.RData"))
 
 load(here::here("data", "analysis_data", "imp_pmm_10.RData"))
@@ -178,17 +191,22 @@ plot(imp_pmm_10)
 # # Look at density plots by individual variables
 # cont_vars
 # densityplot(imp_pmm_10, ~raedyrs) # very similar distributions
-# densityplot(imp_pmm_10, ~itot) 
-# densityplot(imp_pmm_10, ~hhres) 
-# densityplot(imp_pmm_10, ~wtresp) 
+# densityplot(imp_pmm_10, ~itot)
+# densityplot(imp_pmm_10, ~hhres)
+# densityplot(imp_pmm_10, ~wtresp)
 # densityplot(imp_pmm_10, ~memimp)
 
 #---- Stack imputed dataset ----
 load(here::here("data", "analysis_data", "imp_pmm_10.RData"))
-imp_num = 10
+# imp_num = 10
 imp_temp <- list()
-for (i in 1:imp_num){
-  imp_temp[[i]] <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>% 
+for (i in 1:2){
+# for (i in 1:imp_num){
+  # Baseline/time invarying vars
+  temp_wide <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>%
+    select(HHIDPN, baseline_vars) %>% unique()
+  temp_long <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>% 
+    select(-all_of(baseline_vars)) %>%
     mutate(iwstat = as.numeric(as.character(iwstat))) %>%
     # get the nonmissing variables (wave, inw, dead and age_v2) from
     # pre imputation long dataset 
@@ -196,8 +214,11 @@ for (i in 1:imp_num){
                 select(HHIDPN, fu_year, wave, iwstat, inw, dead, age_v2),
               by = c("HHIDPN", "fu_year", "iwstat")) %>%
     # also add back iwstat 5:7 and 9 ~ dead, drop sample or unknown
-    rbind(., hrs_forimp_long %>% filter(!iwstat %in% c(1, 4)))
+    rbind(., hrs_forimp_long %>% select(-all_of(baseline_vars)) 
+          %>% filter(!iwstat %in% c(1, 4)))
   
+  imp_temp[[i]] <- temp_long %>%
+    left_join(temp_wide, by = "HHIDPN")
   imp_temp[[i]][, "imp"] <- i
 }
 
@@ -207,6 +228,7 @@ imp_pmm_stacked <- do.call(rbind, imp_temp)
 colnames(imp_pmm_stacked)
 with(imp_pmm_stacked, table(imp, useNA = "ifany"))
 with(imp_pmm_stacked, table(iwstat, useNA = "ifany"))
+with(imp_pmm_stacked %>% filter(imp == 1), length(unique(HHIDPN)))
 # with(imp_pmm_stacked %>% 
 #   mutate(test_id = paste0(HHIDPN, "_", imp, "_", fu_year)) %>%
 #   group_by(test_id) %>%
@@ -243,8 +265,19 @@ imp_pmm_stacked %<>%
          adl_2cat = case_when(adl6a == 0 ~ 0,
                               adl6a > 0 ~ 1),
          iadl_2cat = case_when(iadl5a == 0 ~ 0,
-                               iadl5a > 0 ~ 1)) %>%
-  mutate(across(all_of(c(binary_vars, cat_vars)), \(x) as.numeric(as.character(x))))
+                               iadl5a > 0 ~ 1),
+         inw_imp = case_when(iwstat %in% c(1, 4) ~ 1,
+                             iwstat %in% c(0, 5, 6, 7, 9) ~ 0)) %>%
+  mutate(across(all_of(c(binary_vars, cat_vars)), \(x) as.numeric(as.character(x))),
+         # set flusht and memimp for wave 2 as NA 
+         flusht = case_when(wave == 2 ~ NA_real_,
+                            TRUE ~ flusht),
+         memimp = case_when(wave == 2 ~ NA_real_,
+                            TRUE ~ memimp))
+
+# # Sanity check
+# with(imp_pmm_stacked, table(iwstat, useNA = "ifany"))
+# with(imp_pmm_stacked, table(inw, inw_imp, useNA = "ifany"))
 
 #---- Save imputed data ----
 saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked.RDS"))
