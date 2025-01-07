@@ -220,7 +220,7 @@ for (w in 1:15){
   hrs %<>%
     mutate(!!paste0("r", w, "age_v2") := 
              case_when(!is.na(!!sym(paste0("r", w, "fu_age"))) ~ 
-                          !!sym(paste0("r", w, "fu_age")),
+                         !!sym(paste0("r", w, "fu_age")),
                        TRUE ~ !!sym(paste0("r", w, "age_y"))))
 }
 
@@ -649,9 +649,17 @@ hrs %>%
 with(hrs, table(is.na(rabdate))) # n = 1 missing age
 
 hrs_selected <- hrs %>%
-  filter(!is.na(rabdate))
-  
-hrs %>% filter(is.na(rabdate)) %>% select(HHIDPN)
+  filter(!is.na(rabdate)) # n = 42404
+
+##---- 2. Filter on participants eligible for 1996 interview ----
+# Filter on participants eligible for 1996 interview
+# and participated in 1994 interview to be able to have covariate values
+r3_resp_id <- hrs_selected %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+# filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+r2_notinsamp_id <-  hrs_selected %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
+table(!r3_resp_id %in% r2_notinsamp_id) # 19845
+hrs_selected <- hrs_selected %>% filter(HHIDPN %in% r3_resp_id,
+                                        !HHIDPN %in% r2_notinsamp_id)
 
 #---- Select the variables ----
 hrs_selected <- hrs_selected %>%
