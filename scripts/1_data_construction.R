@@ -20,7 +20,7 @@ source(here::here("scripts", "functions.R"))
 number_waves <- 1:15
 rand_variables <- c("hhidpn", "ragender", "raracem", "rahispan", "rabmonth", 
                     "rabyear", "rabdate", "radmonth", "radyear", "raddate",
-                    "radage_y",
+                    "radage_y", "hacohort", # the cohort in which the household was originally sampled. 
                     # Response indicator
                     paste0("inw", number_waves),
                     paste0("r", number_waves, "iwbeg"),# Interview begin dates
@@ -96,7 +96,7 @@ memimp %<>%
 colnames(memimp)
 
 demprob <- read_sas(here::here("data", "raw_data", "power_hrsdementia",
-                               "hrsdementia_2021_1109.sas7bdat")) %>%
+                               "hrsdementia_2024_1217.sas7bdat")) %>%
   unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
   mutate_at("HHIDPN", as.numeric) %>%
   # years from 2000-2016 corresponding to waves 5 - 13
@@ -246,7 +246,7 @@ for (w in 1:15){
 hrs %<>% 
   mutate("female" = ifelse(ragender == 2, 1, 0))
 
-#Drop RAND gender variable 
+# Drop RAND gender variable 
 hrs %<>% dplyr::select(-ragender)
 
 #---- Race/Ethnicity ----
@@ -473,7 +473,7 @@ flusht_wide %<>%
     TRUE ~ rowSums(across(paste0("r", seq(3, 13, by = 2), "flusht")), na.rm = TRUE)))
 with(flusht_wide, table(num_flusht_alt, useNA = "ifany"))
 
-flusht_wide %>% filter(seq_flusht == 1) %>% view()
+# flusht_wide %>% filter(seq_flusht == 1) %>% view()
 
 ##---- Creating sub cohorts ----
 # 4 subcohorts of flushot
@@ -513,59 +513,6 @@ hrs %>% select(starts_with("flusht")) %>%
   apply(., 2, table, useNA = "ifany")
 
 
-# ##---- Trajectory plot ----
-# # PENDING
-# flusht_fortraj <- hrs %>%
-#   select(contains("flusht")) %>%
-#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
-#                                                          TRUE ~ .)))) %>%
-#   group_by(across(all_of(paste0("r", 3:15, "flusht")))) %>%
-#   summarize(count = n()) %>% ungroup()
-# 
-# # With missingness
-# flusht_fortraj %>%
-#   ggplot(aes(y = count,
-#              axis1 = r3flusht,
-#              axis2 = r5flusht,
-#              axis3 = r7flusht,
-#              axis4 = r9flusht,
-#              axis5 = r11flusht,
-#              axis6 = r13flusht)) +
-#   geom_alluvium(aes(fill=r3flusht)) +
-#   geom_stratum(alpha = 0) +
-#   geom_label(stat = "stratum", aes(label=after_stat(stratum))) +
-#   labs(fill = "Flu shot acceptance") +
-#   scale_fill_brewer(type = "qual", palette = "Paired",
-#                     labels = c("Not accepted", "Accepted", "Missing")) +
-#   xlab("Years since baseline") +
-#   ylab("Count") +
-#   theme_minimal()
-# 
-# # Sub cohort traj
-# flusht_cohorts_fortraj <- flusht_cohorts %>%
-#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
-#                                                          TRUE ~ .)))) %>%
-#   group_by(across(all_of(paste0("w", seq(1, 5, by = 2), "_flusht")))) %>%
-#   summarize(count = n()) %>% ungroup()
-# 
-# flusht_cohorts_fortraj %>%
-#   ggplot(aes(y = count,
-#              axis1 = w1_flusht,
-#              axis2 = w3_flusht,
-#              axis3 = w5_flusht)) +
-#   geom_alluvium(aes(fill = w1_flusht)) +
-#   geom_stratum(alpha = 0) +
-#   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
-#   labs(fill = "Flu shot acceptance") +
-#   scale_fill_brewer(type = "qual", palette = "Paired",
-#                     labels = c("Not accepted", "Accepted", "Missing")) +
-#   xlab("Waves") +
-#   ylab("Count") +
-#   theme_minimal()
-# 
-# 
-# 
-# 
 # ##---- Create aux variables ----
 # # PENDING
 # # Long dataset
@@ -648,22 +595,24 @@ hrs %>%
   apply(., 2, summary)
 with(hrs, table(is.na(rabdate))) # n = 1 missing age
 
-hrs_selected <- hrs %>%
+hrs_filtered <- hrs %>%
   filter(!is.na(rabdate)) # n = 42404
 
 ##---- 2. Filter on participants eligible for 1996 interview ----
 # Filter on participants eligible for 1996 interview
 # and participated in 1994 interview to be able to have covariate values
-r3_resp_id <- hrs_selected %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+r3_resp_id <- hrs_filtered %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
 # filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
-r2_notinsamp_id <-  hrs_selected %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
-table(!r3_resp_id %in% r2_notinsamp_id) # 19845
-hrs_selected <- hrs_selected %>% filter(HHIDPN %in% r3_resp_id,
-                                        !HHIDPN %in% r2_notinsamp_id)
+r2_notinsamp_id <-  hrs_filtered %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
+r3_resp_r2insamp_id <- r3_resp_id[!r3_resp_id %in% r2_notinsamp_id] # 19845
+hrs_id <- hrs_filtered %>% filter(hacohort == 3) %>% pull(HHIDPN) %>% unique()
+# table(r3_resp_r2insamp_id %in% hrs_id) # n=12362
+hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r3_resp_r2insamp_id)
+                                        # hacohort == 3)
 
 #---- Select the variables ----
-hrs_selected <- hrs_selected %>%
-  select(HHIDPN, raddate,
+hrs_selected <- hrs_filtered %>%
+  select(HHIDPN, raddate, hacohort,
          contains("inw"),
          contains("iwstat"),
          ends_with("dead"),
@@ -683,5 +632,56 @@ hrs_selected <- hrs_selected %>%
 
 #---- Save the data ----
 saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
-saveRDS(hrs_selected, here::here("data", "analysis_data", "hrs_selected.rds"))
+save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected.RData"))
 
+# #---- Trajectory plot ----
+# flusht_fortraj <- hrs_selected %>%
+#   select(contains("flusht")) %>%
+#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
+#                                                          TRUE ~ .)))) %>%
+#   group_by(across(all_of(paste0("r", 3:15, "flusht")))) %>%
+#   summarize(count = n()) %>% ungroup()
+# 
+# # With missingness
+# flusht_fortraj %>%
+#   ggplot(aes(y = count,
+#              axis1 = r3flusht,
+#              axis2 = r5flusht,
+#              axis3 = r7flusht,
+#              axis4 = r9flusht,
+#              axis5 = r11flusht,
+#              axis6 = r13flusht,
+#              axis7 = r15flusht)) +
+#   geom_alluvium(aes(fill=r3flusht)) +
+#   geom_stratum(alpha = 0) +
+#   geom_label(stat = "stratum", aes(label=after_stat(stratum))) +
+#   labs(fill = "Flu shot acceptance") +
+#   scale_fill_brewer(type = "qual", palette = "Paired",
+#                     labels = c("Not accepted", "Accepted", "Missing")) +
+#   scale_x_continuous(limits = c(1, 7), 
+#                      breaks = seq(1, 7, by = 2)) +
+#   xlab("Waves") +
+#   ylab("Count") +
+#   theme_minimal()
+# 
+# # Sub cohort traj
+# flusht_cohorts_fortraj <- flusht_cohorts %>%
+#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
+#                                                          TRUE ~ .)))) %>%
+#   group_by(across(all_of(paste0("w", seq(1, 5, by = 2), "_flusht")))) %>%
+#   summarize(count = n()) %>% ungroup()
+# 
+# flusht_cohorts_fortraj %>%
+#   ggplot(aes(y = count,
+#              axis1 = w1_flusht,
+#              axis2 = w3_flusht,
+#              axis3 = w5_flusht)) +
+#   geom_alluvium(aes(fill = w1_flusht)) +
+#   geom_stratum(alpha = 0) +
+#   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+#   labs(fill = "Flu shot acceptance") +
+#   scale_fill_brewer(type = "qual", palette = "Paired",
+#                     labels = c("Not accepted", "Accepted", "Missing")) +
+#   xlab("Waves") +
+#   ylab("Count") +
+#   theme_minimal()
