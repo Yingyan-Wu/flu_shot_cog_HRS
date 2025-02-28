@@ -34,6 +34,7 @@ hrs_selected %>%
 
 with(hrs_selected, table(hacohort, useNA = "ifany"))
 # HRS ahead overlap, AHEAD only, HRS only
+with(hrs_selected, table(hacohort, r3wtresp == 0, useNA = "ifany"))
 
 #---- Pre imp ----
 colnames(hrs_selected)
@@ -64,7 +65,7 @@ hrs_forimp <- hrs_selected %>%
   select(-contains(c("adl_2cat", "iadl_2cat", "mstat_2cat"))) %>% # drop ADL and IADL derived variables
   select(HHIDPN, all_of(baseline_vars),
          paste0("r", flusht_waves, "flusht"),
-         paste0("r", 2, tv_cov_forimp),
+         paste0("r", 2, c(tv_cov_forimp, "inw", "dead")),
          paste0("r", as.vector(outer(waves, tv_vars[!tv_vars == "flusht"], "paste0"))))
 
 # # check missingness
@@ -395,7 +396,7 @@ load(here::here("data", "analysis_data", "imp_pmm_10_ahead_hrs.RData"))
 
 imp_num = 10
 imp_temp <- list()
-for (i in 1){
+for (i in 1:10){
   temp_bl <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>%
     select(HHIDPN, all_of(baseline_vars)) %>% unique() %>%
     left_join(hrs_forimp %>% select(HHIDPN, r3age_v2), by = "HHIDPN")
@@ -404,11 +405,11 @@ for (i in 1){
     mutate(iwstat = as.numeric(as.character(iwstat))) %>%
     # get iwstat 1:4 memimp
     left_join(hrs_forimp_long %>%
-                select(HHIDPN, wave, iwstat, age_v2, memimp),
+                select(HHIDPN, wave, iwstat, age_v2, memimp, dead, inw),
               by = c("HHIDPN", "age_v2", "iwstat")) %>%
     # merge back iwstat 5:7
     rbind(., hrs_forimp_long %>% 
-            select(HHIDPN, wave, all_of(tv_vars_forimp), "memimp") %>%
+            select(HHIDPN, wave, all_of(tv_vars_forimp), "memimp", dead, inw) %>%
             filter(!iwstat %in% c(1, 4)))
   imp_temp[[i]] <- temp_tv_long %>%
     left_join(temp_bl, by = "HHIDPN")
@@ -422,6 +423,8 @@ imp_pmm_stacked <- do.call(rbind, imp_temp)
 colnames(imp_pmm_stacked)
 with(imp_pmm_stacked, table(imp, useNA = "ifany"))
 with(imp_pmm_stacked, table(iwstat, useNA = "ifany"))
+with(imp_pmm_stacked, table(iwstat, inw, useNA = "ifany"))
+with(imp_pmm_stacked, table(iwstat, dead, useNA = "ifany"))
 with(imp_pmm_stacked %>% filter(imp == 1), length(unique(HHIDPN)))
 # with(imp_pmm_stacked %>% 
 #   mutate(test_id = paste0(HHIDPN, "_", imp, "_", fu_year)) %>%
@@ -481,97 +484,6 @@ imp_pmm_stacked %<>%
 #   select(all_of(r2vars)) %>%
 #   apply(., 2, table, useNA = "ifany")
 # with(imp_pmm_stacked, table(flusht, wave, useNA = "ifany"))
-
-# r3memimp_mean_sd <- imp_pmm_stacked %>%
-#   group_by(imp) %>%
-#   filter(wave == 3) %>%
-#   summarize(r3memimp_mean = mean(memimp, na.rm = T),
-#             r3memimp_sd = sd(memimp, na.rm = T))
-# 
-# imp_pmm_stacked %<>%
-#   left_join(r3memimp_mean_sd, by = "imp") %>%
-#   mutate(memimp_z = (memimp-r3memimp_mean)/r3memimp_sd)
-
-# # # Sanity check
-# imp_pmm_stacked %>%
-#   group_by(imp, wave) %>%
-#   summarize(mean = mean(memimp_z, na.rm = T), sd = sd(memimp_z, na.rm = T), 
-#             median = median(memimp_z, na.rm = T))
-# with(imp_pmm_stacked, table(iwstat, useNA = "ifany"))
-# with(imp_pmm_stacked, table(iwstat, inw_imp, useNA = "ifany"))
-
-# ##---- Check the distribution of imputed memimp ----
-# hrs_imp_r3resp_memimp_long <- imp_pmm_stacked %>%
-#   filter(imp == 1) %>%
-#   mutate(wave = as.numeric(wave))
-# hrs_imp_r3resp_memimp_mean <- hrs_imp_r3resp_memimp_long %>%
-#   group_by(wave) %>%
-#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp)))) %>%
-#   filter(wave != 2)
-# 
-# hrs_imp_r3resp_memimp_mean %>%
-#   mutate(year = (wave - 5)*2 + 2000) %>%
-#   ggplot(aes(x = year, y = mean_memimp)) +
-#   geom_point() +
-#   geom_line() +
-#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
-#                     ymax = mean_memimp + 1.96*se_memimp),
-#                 width = 0.2) +
-#   scale_y_continuous(limits = c(0.45, 1.25)) +
-#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-#   labs(title = "Mean memory score over time (analytic sample with imputation)",
-#        x = "year",
-#        y = "Mean memory score") +
-#   theme_bw()
-# 
-# ##---- Analytic sample not imputed ----
-# hrs_memimp_long <- hrs_selected %>%
-#   select(HHIDPN, contains("memimp")) %>%
-#   pivot_longer(cols = contains("memimp"),
-#                names_to = "wave",
-#                values_to = "memimp",
-#                names_pattern = "r(.*)memimp") %>%
-#   mutate(wave = as.numeric(wave))
-# hrs_memimp_mean <- hrs_memimp_long %>%
-#   group_by(wave) %>%
-#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-# 
-# hrs_memimp_mean %>%
-#   mutate(year = (wave - 5)*2 + 2000) %>%
-#   ggplot(aes(x = year, y = mean_memimp)) +
-#   geom_point() +
-#   geom_line() +
-#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
-#                     ymax = mean_memimp + 1.96*se_memimp),
-#                 width = 0.2) +
-#   scale_y_continuous(limits = c(0.45, 1.25)) +
-#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-#   labs(title = "Mean memory score over time (HRS sample only, analytic sample pre imputation)",
-#        x = "year",
-#        y = "Mean memory score") +
-#   theme_bw()
-# 
-# hrs_memimp_preandpost_imp <- hrs_imp_r3resp_memimp_mean %>%
-#   mutate(sample = "imputed") %>%
-#   bind_rows(hrs_memimp_mean %>%
-#               mutate(sample = "pre imputation"))
-# 
-# hrs_memimp_preandpost_imp %>%
-#   mutate(year = (wave - 5)*2 + 2000) %>%
-#   ggplot(aes(x = year, y = mean_memimp, color = sample)) +
-#   geom_point() +
-#   geom_line() +
-#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
-#                     ymax = mean_memimp + 1.96*se_memimp),
-#                 width = 0.2) +
-#   scale_y_continuous(limits = c(0.45, 1.25)) +
-#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-#   labs(title = "Mean memory score over time (HRS sample only, analytic sample pre imputation)",
-#        x = "year",
-#        y = "Mean memory score") +
-#   theme_bw()
 
 #---- Save imputed data ----
 saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hrs.RDS"))
