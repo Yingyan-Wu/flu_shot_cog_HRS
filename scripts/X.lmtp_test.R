@@ -22,6 +22,17 @@ policy_1 <- function(data, trt){
 #---- load the data ----
 ucla211epi <- read_sas('/Users/yingyanwu/Library/CloudStorage/OneDrive-Personal/Epidemiology Studies/6th year/EPI M211/programming/R/ucla211epi.sas7bdat')
 
+
+#---- Natural course ----
+nc <- lmtp_tmle(ucla211epi,
+                trt = c("x0", "x1"),
+                outcome = "y",
+                baseline = "z0",
+                time_vary = list("z0", "z1"),
+                outcome_type = "binomial",
+                mtp = FALSE,
+                folds = 1)
+
 #---- Sustained treatment effect ----
 binary_on <- lmtp_tmle(ucla211epi,
                        trt = c("x0", "x1"),
@@ -135,11 +146,42 @@ Y4X3_0 <- lmtp_tmle(ucla211epi_2,
                     outcome_type = "binomial",
                     mtp = FALSE, 
                     folds = 1)
+ucla211epi_11 <- ucla211epi_2 %>%
+  filter(X3 == 1)
+Y4X3_1_2 <- lmtp_tmle(ucla211epi_11,
+                    trt = c("X3", "X4"),
+                    outcome = "Y4",
+                    baseline = "z0",
+                    time_vary = list("z0", "L3"),
+                    # cens = ,
+                    shift = policy_1,
+                    outcome_type = "binomial",
+                    mtp = FALSE, 
+                    folds = 1)
+
+Y4X3_nc <- lmtp_tmle(ucla211epi_2,
+                     trt = "X3",
+                     outcome = "Y4",
+                     baseline = "z0",
+                     time_vary = list("L3"),
+                     outcome_type = "binomial",
+                     mtp = FALSE, 
+                     folds = 1)
+
 lmtp_contrast(Y4X3_1, ref = Y4X3_0, type = c("additive"))
 # X3's effect on Y4 (X0's effect on Y): is and should be 0.139
 
 ##---- Y4|X3, X4 ----
 Y4_X3X4_1 <- lmtp_tmle(ucla211epi_2,
+                       trt = c("X3", "X4"),
+                       outcome = "Y4",
+                       baseline = "z0",
+                       time_vary = list("z0", "L3"),
+                       shift = static_binary_on,
+                       outcome_type = "binomial",
+                       mtp = FALSE, 
+                       folds = 1)
+Y4_X3X4_1_2 <- lmtp_tmle(ucla211epi_11,
                        trt = c("X3", "X4"),
                        outcome = "Y4",
                        baseline = "z0",
@@ -158,6 +200,25 @@ Y4_X3X4_0 <- lmtp_tmle(ucla211epi_2,
                        outcome_type = "binomial",
                        mtp = FALSE, 
                        folds = 1)
+ucla211epi_00 <- ucla211epi_2 %>%
+  filter(X3 == 0, X4 == 0)
+Y4_X3X4_0_2 <- lmtp_tmle(ucla211epi_00,
+                         trt = c("X3", "X4"),
+                         outcome = "Y4",
+                         baseline = "z0",
+                         time_vary = list("z0", "L3"),
+                         shift = static_binary_off,
+                         outcome_type = "binomial",
+                         mtp = FALSE, 
+                         folds = 1)
+Y4_X3X4_nc <- lmtp_tmle(ucla211epi_2,
+                     trt = c("X3", "X4"),
+                     outcome = "Y4",
+                     baseline = "z0",
+                     time_vary = list("z0", "L3"),
+                     outcome_type = "binomial",
+                     mtp = FALSE, 
+                     folds = 1)
 
 lmtp_contrast(Y4_X3X4_1, ref = Y4_X3X4_0, type = c("additive"))
 # joint effect of X3 X4's effect on Y4 is 0.139
