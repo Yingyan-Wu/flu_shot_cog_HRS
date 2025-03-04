@@ -144,7 +144,7 @@ L_allwaves[[1]] <- NULL
 #   assign(paste0("L_r", waves[i]), lists[[i + 1]])
 # }
 
-##---- Censoring ---
+##---- Censoring ----
 # 1 if in the study at this wave, 0 otherwise
 waves_fu <- waves[waves != 2]
 C_allwaves <- lapply(waves_fu, function(w) {
