@@ -39,7 +39,8 @@ with(hrs_selected, table(hacohort, r3wtresp == 0, useNA = "ifany"))
 #---- Pre imp ----
 colnames(hrs_selected)
 # Baseline: wave 3, yr 1996
-baseline_vars <- c("female", "raceeth", "raedyrs", "r3memimp", "r3wtresp")
+baseline_vars <- c("female", "raceeth", "raedyrs", # "r3memimp", 
+                   "r3wtresp")
 tv_vars <- c("age_v2", "mstat", "flusht",
              # income pp
              "itot", "hhres",
@@ -56,7 +57,7 @@ tv_vars <- c("age_v2", "mstat", "flusht",
              "inw", "dead", "iwstat")
 
 # Don't impute the outcome for now
-tv_vars_forimp <- tv_vars[!tv_vars %in% c("memimp", "wtresp", "inw", "dead")]
+tv_vars_forimp <- tv_vars[!tv_vars %in% c("wtresp", "inw", "dead")]
 tv_cov_forimp <- tv_vars_forimp[!tv_vars_forimp %in% c("flusht", "memimp")]
 flusht_waves <- seq(3, 15, by = 2)
 waves <- 3:15
@@ -75,7 +76,8 @@ hrs_forimp_long <- hrs_forimp %>%
                names_to = c("wave", ".value"), 
                names_pattern = "r(\\d+)(.*)") %>%
   mutate(wave = as.numeric(wave)) %>%
-  left_join(hrs_selected %>% select(HHIDPN, r3memimp, r3wtresp), by = "HHIDPN")
+  left_join(hrs_selected %>% select(HHIDPN, # r3memimp, 
+                                    r3wtresp), by = "HHIDPN")
 
 # # Check iwstat
 # hrs_forimp_long %>%
@@ -150,7 +152,7 @@ tv_vars_w_NA <- missing_summary %>%
   pull(feature) %>% as.character()
 
 ##---- Missingness summary table ----
-r2vars <- c("adl6a", "iadl5a")
+r2vars <- c("adl6a", "iadl5a", "memimp")
 num_r2resp <- hrs_preimp %>% filter(wave == 2) %>% nrow()
 nonflusht_index <- as.logical(hrs_preimp$wave %% 2 == 0)
 num_nonflusht_resp <- hrs_preimp %>% filter(nonflusht_index) %>% nrow()
@@ -377,7 +379,7 @@ tictoc::toc()
 #                                seed = 62283,
 #                                nnodes = n_core)
 
-save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_ahead_hrs.RData"))
+save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_ahead_hrs_outcome.RData"))
 
 imp_pmm_10$loggedEvents # dropped iwstat for a bunch of tv vars, can be ignored
 complete(imp_pmm_10) %>%
@@ -389,10 +391,10 @@ plot(imp_pmm_10)
 # densityplot(imp_pmm_10, ~itot)
 # densityplot(imp_pmm_10, ~hhres)
 # densityplot(imp_pmm_10, ~r3wtresp)
-# densityplot(imp_pmm_10, ~r3memimp)
+# densityplot(imp_pmm_10, ~memimp)
 
 #---- Stack imputed dataset ----
-load(here::here("data", "analysis_data", "imp_pmm_10_ahead_hrs.RData"))
+load(here::here("data", "analysis_data", "imp_pmm_10_ahead_hrs_outcome.RData"))
 
 imp_num = 10
 imp_temp <- list()
@@ -403,13 +405,13 @@ for (i in 1:10){
   temp_tv_long <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>%
     select(-all_of(baseline_vars)) %>%
     mutate(iwstat = as.numeric(as.character(iwstat))) %>%
-    # get iwstat 1:4 memimp
+    # get iwstat 1:4 (we impute memimp now)
     left_join(hrs_forimp_long %>%
-                select(HHIDPN, wave, iwstat, age_v2, memimp, dead, inw),
+                select(HHIDPN, wave, iwstat, age_v2, dead, inw),
               by = c("HHIDPN", "age_v2", "iwstat")) %>%
     # merge back iwstat 5:7
     rbind(., hrs_forimp_long %>% 
-            select(HHIDPN, wave, all_of(tv_vars_forimp), "memimp", dead, inw) %>%
+            select(HHIDPN, wave, all_of(tv_vars_forimp), memimp, dead, inw) %>%
             filter(!iwstat %in% c(1, 4)))
   imp_temp[[i]] <- temp_tv_long %>%
     left_join(temp_bl, by = "HHIDPN")
@@ -476,14 +478,105 @@ imp_pmm_stacked %<>%
                            TRUE ~ adl6a),
          iadl5a = case_when(wave == 2 ~ NA_real_,
                             TRUE ~ iadl5a),
+         memimp = case_when(wave == 2 ~ NA_real_,
+                            TRUE ~ memimp),
          flusht = case_when(wave %% 2 == 0 ~ NA_real_,
                             TRUE ~ flusht))
-# # Sanity check
-# imp_pmm_stacked %>%
-#   filter(wave == 2) %>%
-#   select(all_of(r2vars)) %>%
-#   apply(., 2, table, useNA = "ifany")
-# with(imp_pmm_stacked, table(flusht, wave, useNA = "ifany"))
+# Sanity check
+imp_pmm_stacked %>%
+  filter(wave == 2) %>%
+  select(all_of(r2vars)) %>%
+  apply(., 2, table, useNA = "ifany")
+with(imp_pmm_stacked, table(flusht, wave, useNA = "ifany"))
+
+##---- Check the distribution of imputed memimp ----
+hrs_imp_r3resp_memimp_long <- imp_pmm_stacked %>%
+  filter(imp == 1) %>%
+  mutate(wave = as.numeric(wave))
+hrs_imp_r3resp_memimp_mean <- hrs_imp_r3resp_memimp_long %>%
+  group_by(wave) %>%
+  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp)))) %>%
+filter(wave != 2)
+
+# Only imputed values
+hrs_imponly_r3resp_memimp_long <- imp_pmm_stacked %>%
+  filter(imp == 1, iwstat %in% c(1, 4)) %>%
+  select(HHIDPN, wave, memimp) %>%
+  left_join(hrs_preimp %>% select(HHIDPN, wave, memimp) %>% rename(memimp_pre = memimp), 
+            by = c("HHIDPN", "wave")) %>%
+  mutate(impute_mem = case_when(is.na(memimp_pre) & !is.na(memimp) ~ 1,
+                                !is.na(memimp_pre) ~ 0))
+# Sanity check
+with(hrs_imponly_r3resp_memimp_long, table(impute_mem, wave, useNA = "ifany"))
+with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1), summary(memimp))
+with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0), summary(memimp))
+with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1, wave == 3), summary(memimp))
+with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0, wave == 3), summary(memimp))
+with(hrs_imponly_r3resp_memimp_long %>% filter(wave == 3), summary(memimp))
+
+hrs_imp_r3resp_memimp_mean %>%
+  mutate(year = (wave - 5)*2 + 2000) %>%
+  ggplot(aes(x = year, y = mean_memimp)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+                    ymax = mean_memimp + 1.96*se_memimp),
+                width = 0.2) +
+  # scale_y_continuous(limits = c(0.45, 1.25)) +
+  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+  labs(title = "Mean memory score over time (analytic sample with imputation: imp = 1)",
+       x = "year",
+       y = "Mean memory score") +
+  theme_bw()
+
+##---- Analytic sample not imputed ----
+hrs_memimp_long <- hrs_selected %>%
+  select(HHIDPN, contains("memimp")) %>%
+  pivot_longer(cols = contains("memimp"),
+               names_to = "wave",
+               values_to = "memimp",
+               names_pattern = "r(.*)memimp") %>%
+  mutate(wave = as.numeric(wave))
+hrs_memimp_mean <- hrs_memimp_long %>%
+  group_by(wave) %>%
+  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+
+hrs_memimp_mean %>%
+  mutate(year = (wave - 5)*2 + 2000) %>%
+  ggplot(aes(x = year, y = mean_memimp)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+                    ymax = mean_memimp + 1.96*se_memimp),
+                width = 0.2) +
+  scale_y_continuous(limits = c(0.45, 1.25)) +
+  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+  labs(title = "Mean memory score over time (analytic sample pre imputation)",
+       x = "year",
+       y = "Mean memory score") +
+  theme_bw()
+
+hrs_memimp_preandpost_imp <- hrs_imp_r3resp_memimp_mean %>%
+  mutate(sample = "imputed") %>%
+  bind_rows(hrs_memimp_mean %>%
+              mutate(sample = "pre imputation"))
+
+hrs_memimp_preandpost_imp %>%
+  mutate(year = (wave - 5)*2 + 2000) %>%
+  ggplot(aes(x = year, y = mean_memimp, color = sample)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+                    ymax = mean_memimp + 1.96*se_memimp),
+                width = 0.2) +
+  scale_y_continuous(limits = c(0.45, 1.25)) +
+  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+  labs(title = "Mean memory score over time (HRS sample only, analytic sample pre imputation)",
+       x = "year",
+       y = "Mean memory score") +
+  theme_bw()
 
 #---- Save imputed data ----
-saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hrs.RDS"))
+saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hrs_outcome.RDS"))
