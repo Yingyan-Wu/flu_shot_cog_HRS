@@ -145,7 +145,6 @@ trt_allwaves <- lapply(waves_fu, function(w) {
 # }
 
 #---- Models ----
-imp = 1
 hrs_imp_r3resp_wide_imp1 <- hrs_imp_r3resp_wide %>% filter(imp == 1)
 
 ##---- Natural course ----
@@ -196,14 +195,13 @@ lmtp_sus0_results <- lapply(seq_along(waves_fu), function(i) lmtp_sus(i, treated
 (end_sus <- Sys.time())
 end_sus - start_sus # 1.993609 hours
 
-# ##---- Baseline intervention ----
-# # PENDING
+##---- Baseline intervention ----
 # Policy intervene function for lmtp
 # Policy to intervene only on baseline flusht
 policy_0 <- function(data, trt){
   if(trt == "r3flusht") {
     return(rep(0, each = length(data[[trt]])))
-  }else{
+  } else {
     # this should not be used as the treatment is not the baseline treatment
     data[[trt]]
   }
@@ -212,7 +210,7 @@ policy_0 <- function(data, trt){
 policy_1 <- function(data, trt){
   if(trt == "r3flusht") {
     return(rep(1, each = length(data[[trt]])))
-  }else{
+  } else {
     # this should not be used as the treatment is not the baseline treatment
     data[[trt]]
   }
@@ -221,7 +219,7 @@ policy_1 <- function(data, trt){
 (start_base <- Sys.time())
 lmtp_base <-  function(i, treated = 1) {
   lmtp_tmle(hrs_imp_r3resp_wide_imp1,
-            trt = trt_allwaves[[i]],,
+            trt = trt_allwaves[[i]],
             outcome = paste0("r", waves_fu[i], "memimp"),
             baseline = bl_vars,
             time_vary = L_allwaves[[i]],
@@ -233,8 +231,6 @@ lmtp_base <-  function(i, treated = 1) {
             weights = hrs_imp_r3resp_wide_imp1$r3wtresp,
             folds = 1)
 }
-lmtp_base(1, treated = 1)
-lmtp_base(2, treated = 1)
 
 # with IPCW, it has to be the same length for C, for L and for trt
 lmtp_base1_results <- lapply(seq_along(waves_fu), function(i) lmtp_base(i, treated = 1))
@@ -244,14 +240,10 @@ lmtp_base0_results <- lapply(seq_along(waves_fu), function(i) lmtp_base(i, treat
 #---- Clean results ----
 save(lmtp_sus1_results, lmtp_sus0_results, lmtp_nc_results, 
      file = here::here("data", "model_results", 
-                       # "lmtp_results_imp1.RData")) # r3iwstat 1,4
-                       # "lmtp_results_imp1_iwstat1.RData")) # r3iwstat 1
                        "lmtp_results_imp1_ahead_hrs_memimpimpute.RData"))
 
 load(here::here("data", "model_results", 
-                # "lmtp_results_imp1.RData")) # r3iwstat 1,4
-                # "lmtp_results_imp1_iwstat1.RData")) # r3iwstat 1
-                "lmtp_results_imp1_ahead_hrs_memimpnonimpute.RData"))
+                "lmtp_results_imp1_ahead_hrs_memimpimpute.RData"))
 
 pe_se_to_tib <- function(lmtp_list){
   sapply(lmtp_list, function(x) c(x$theta, x$standard_error)) %>%
@@ -305,171 +297,166 @@ for (i in 1:length(waves_fu)){
   print(lmtp_contrast(lmtp_sus1_results[[i]], ref = lmtp_nc_results[[i]]))
 }
 
-# lmtp_contrast(lmtp_sus1_results[[7]], ref = lmtp_sus0_results[[7]])
-
-
-
-
-#---- Check the trend between 2018 and 2020 ----
-##---- Analytic sample not imputed ----
-hrs_selected <- readRDS(here::here("data", "analysis_data", "hrs_selected.rds"))
-hrs_analytic <- hrs_selected %>%
-  filter(HHIDPN %in% r3_resp_id,
-         !HHIDPN %in% r2_notinsamp_id)
-hrs_memimp_long <- hrs_analytic %>%
-  select(HHIDPN, contains("memimp")) %>%
-  pivot_longer(cols = contains("memimp"),
-               names_to = "wave",
-               values_to = "memimp",
-               names_pattern = "r(.*)memimp") %>%
-  mutate(wave = as.numeric(wave))
-hrs_memimp_mean <- hrs_memimp_long %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-
-hrs_memimp_mean %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time (analytic sample pre imputation)",
-       x = "year",
-       y = "Mean memory score") +
-  theme_bw()
-
-##---- Analytic sample in this script ----
-hrs_imp_r3resp_memimp_long <- hrs_imp_r3resp_wide_imp1 %>%
-  select(HHIDPN, contains("memimp")) %>%
-  pivot_longer(cols = contains("memimp"),
-               names_to = "wave",
-               values_to = "memimp",
-               names_pattern = "r(.*)memimp") %>%
-  mutate(wave = as.numeric(wave)) 
-hrs_imp_r3resp_memimp_mean <- hrs_imp_r3resp_memimp_long %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-
-hrs_imp_r3resp_memimp_mean %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time (analytic sample with imputation)",
-       x = "year",
-       y = "Mean memory score") +
-  theme_bw()
-
-##---- All imputed data ----
-hrs_imp1 <- hrs_imp %>%
-  filter(imp == 1) %>%
-  filter(wave != 2)
-
-hrs_imp1_memimp_mean <- hrs_imp1 %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-
-length(unique(hrs_imp1$HHIDPN))
-
-hrs_imp1_memimp_mean %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time (all imputed data)",
-       x = "Wave",
-       y = "Mean memory score") +
-  theme_bw()
-
-# wave 3 outcome ~ wave 3 treatment, time invarying var, time varying var wave 2
-# wave 5 outcome ~ wave 3 and wave 5 treatment, time invarying, time varying var wave 2 wave 3
+# #---- Check the trend between 2018 and 2020 ----
+# ##---- Analytic sample not imputed ----
+# hrs_selected <- readRDS(here::here("data", "analysis_data", "hrs_selected.rds"))
+# hrs_analytic <- hrs_selected %>%
+#   filter(HHIDPN %in% r3_resp_id,
+#          !HHIDPN %in% r2_notinsamp_id)
+# hrs_memimp_long <- hrs_analytic %>%
+#   select(HHIDPN, contains("memimp")) %>%
+#   pivot_longer(cols = contains("memimp"),
+#                names_to = "wave",
+#                values_to = "memimp",
+#                names_pattern = "r(.*)memimp") %>%
+#   mutate(wave = as.numeric(wave))
+# hrs_memimp_mean <- hrs_memimp_long %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
 # 
-# model2020 <- lm(r15memimp ~ ,
-#                 data = hrs_imp_r3resp_wide_imp1)
-
-##---- wave 3 and wave 15 participants ----
-r15_resp_id <- hrs_imp %>% select(HHIDPN, wave, iwstat) %>%
-  filter(wave == 15, iwstat == 1) %>% pull(HHIDPN) %>% unique()
-hrs_imp_r3resp_wide_imp1 %>%
-  filter(HHIDPN %in% r15_resp_id) %>% nrow()
-hrs_imp_r3resp_wide_imp1 %>%
-  filter(HHIDPN %in% r15_resp_id) %>%
-  select(contains("iwstat")) %>%
-  apply(., 2, table, useNA = "ifany")
-hrs_imp_r3resp_memimp_long_r15 <- hrs_imp_r3resp_wide_imp1 %>%
-  filter(HHIDPN %in% r15_resp_id) %>%
-  select(HHIDPN, contains("memimp")) %>%
-  pivot_longer(cols = contains("memimp"),
-               names_to = "wave",
-               values_to = "memimp",
-               names_pattern = "r(.*)memimp") %>%
-  mutate(wave = as.numeric(wave)) 
-hrs_imp_r3resp_memimp_mean_r15 <- hrs_imp_r3resp_memimp_long_r15 %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-
-hrs_imp_r3resp_memimp_mean_r15 %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time imputed (alive and in the sample throughout)",
-       x = "Wave",
-       y = "Mean memory score") +
-  theme_bw()
-
-##---- wave 3 and wave 9 participants ----
-r9_resp_id <- hrs_imp %>% select(HHIDPN, wave, iwstat) %>%
-  filter(wave == 9, iwstat == 1) %>% pull(HHIDPN) %>% unique()
-hrs_imp_r3resp_wide_imp1 %>%
-  filter(HHIDPN %in% r9_resp_id) %>% nrow()
-hrs_imp_r3resp_memimp_long_r9 <- hrs_imp_r3resp_wide_imp1 %>%
-  filter(HHIDPN %in% r9_resp_id) %>%
-  select(HHIDPN, contains("memimp")) %>%
-  pivot_longer(cols = contains("memimp"),
-               names_to = "wave",
-               values_to = "memimp",
-               names_pattern = "r(.*)memimp") %>%
-  mutate(wave = as.numeric(wave)) 
-hrs_imp_r3resp_memimp_mean_r9 <- hrs_imp_r3resp_memimp_long_r9 %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-
-hrs_imp_r3resp_memimp_mean_r9 %>%
-  ggplot(aes(x = wave, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, ymax = mean_memimp + 1.96*se_memimp)) +
-  labs(title = "Mean memory score over time (wave 2, 3, 5 participants with imputation)",
-       x = "Wave",
-       y = "Mean memory score") +
-  theme_bw()
-
-
+# hrs_memimp_mean %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time (analytic sample pre imputation)",
+#        x = "year",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
+# ##---- Analytic sample in this script ----
+# hrs_imp_r3resp_memimp_long <- hrs_imp_r3resp_wide_imp1 %>%
+#   select(HHIDPN, contains("memimp")) %>%
+#   pivot_longer(cols = contains("memimp"),
+#                names_to = "wave",
+#                values_to = "memimp",
+#                names_pattern = "r(.*)memimp") %>%
+#   mutate(wave = as.numeric(wave)) 
+# hrs_imp_r3resp_memimp_mean <- hrs_imp_r3resp_memimp_long %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+# 
+# hrs_imp_r3resp_memimp_mean %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time (analytic sample with imputation)",
+#        x = "year",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
+# ##---- All imputed data ----
+# hrs_imp1 <- hrs_imp %>%
+#   filter(imp == 1) %>%
+#   filter(wave != 2)
+# 
+# hrs_imp1_memimp_mean <- hrs_imp1 %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+# 
+# length(unique(hrs_imp1$HHIDPN))
+# 
+# hrs_imp1_memimp_mean %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time (all imputed data)",
+#        x = "Wave",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
+# # wave 3 outcome ~ wave 3 treatment, time invarying var, time varying var wave 2
+# # wave 5 outcome ~ wave 3 and wave 5 treatment, time invarying, time varying var wave 2 wave 3
+# # 
+# # model2020 <- lm(r15memimp ~ ,
+# #                 data = hrs_imp_r3resp_wide_imp1)
+# 
+# ##---- wave 3 and wave 15 participants ----
+# r15_resp_id <- hrs_imp %>% select(HHIDPN, wave, iwstat) %>%
+#   filter(wave == 15, iwstat == 1) %>% pull(HHIDPN) %>% unique()
+# hrs_imp_r3resp_wide_imp1 %>%
+#   filter(HHIDPN %in% r15_resp_id) %>% nrow()
+# hrs_imp_r3resp_wide_imp1 %>%
+#   filter(HHIDPN %in% r15_resp_id) %>%
+#   select(contains("iwstat")) %>%
+#   apply(., 2, table, useNA = "ifany")
+# hrs_imp_r3resp_memimp_long_r15 <- hrs_imp_r3resp_wide_imp1 %>%
+#   filter(HHIDPN %in% r15_resp_id) %>%
+#   select(HHIDPN, contains("memimp")) %>%
+#   pivot_longer(cols = contains("memimp"),
+#                names_to = "wave",
+#                values_to = "memimp",
+#                names_pattern = "r(.*)memimp") %>%
+#   mutate(wave = as.numeric(wave)) 
+# hrs_imp_r3resp_memimp_mean_r15 <- hrs_imp_r3resp_memimp_long_r15 %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+# 
+# hrs_imp_r3resp_memimp_mean_r15 %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, 
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time imputed (alive and in the sample throughout)",
+#        x = "Wave",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
+# ##---- wave 3 and wave 9 participants ----
+# r9_resp_id <- hrs_imp %>% select(HHIDPN, wave, iwstat) %>%
+#   filter(wave == 9, iwstat == 1) %>% pull(HHIDPN) %>% unique()
+# hrs_imp_r3resp_wide_imp1 %>%
+#   filter(HHIDPN %in% r9_resp_id) %>% nrow()
+# hrs_imp_r3resp_memimp_long_r9 <- hrs_imp_r3resp_wide_imp1 %>%
+#   filter(HHIDPN %in% r9_resp_id) %>%
+#   select(HHIDPN, contains("memimp")) %>%
+#   pivot_longer(cols = contains("memimp"),
+#                names_to = "wave",
+#                values_to = "memimp",
+#                names_pattern = "r(.*)memimp") %>%
+#   mutate(wave = as.numeric(wave)) 
+# hrs_imp_r3resp_memimp_mean_r9 <- hrs_imp_r3resp_memimp_long_r9 %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+# 
+# hrs_imp_r3resp_memimp_mean_r9 %>%
+#   ggplot(aes(x = wave, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp, ymax = mean_memimp + 1.96*se_memimp)) +
+#   labs(title = "Mean memory score over time (wave 2, 3, 5 participants with imputation)",
+#        x = "Wave",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
 # #---- OLD ----
-colSums(is.na(hrs_imp_r3resp_wide_imp1 %>%
-                select(all_of(c(trt_allwaves[[1]], paste0("r", waves_fu[1], "memimp"),
-                                bl_vars, unlist(L_allwaves[[1]]), C_allwaves[[1]], "r3wtresp")))))
+
+# colSums(is.na(hrs_imp_r3resp_wide_imp1 %>%
+#                 select(all_of(c(trt_allwaves[[1]], paste0("r", waves_fu[1], "memimp"),
+#                                 bl_vars, unlist(L_allwaves[[1]]), C_allwaves[[1]], "r3wtresp")))))
 # colSums(is.na(hrs_imp_r3resp_wide_imp1 %>%
 #                 select(all_of(c(trt_allwaves[[5]], paste0("r", waves_fu[5], "memimp"),
 #                                 bl_vars, unlist(L_allwaves[[5]]), C_allwaves[[5]], "r3wtresp")))))
