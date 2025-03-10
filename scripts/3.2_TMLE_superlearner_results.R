@@ -196,7 +196,8 @@ results_pe_se_rubin %>%
        y = "Memory z-score") +
   theme_bw() +
   theme(legend.position = "bottom")
-ggsave(here::here("output", "figures", "tmle_results_SL_ahead_hrs_memimp_impute.jpg"), width = 9, height = 7)
+ggsave(here::here("output", "figures", "tmle_results_SL_ahead_hrs_memimp_impute.png"), 
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 # Contrast table
 results_contrasts_year_table <- results_contrasts_rubin %>%
