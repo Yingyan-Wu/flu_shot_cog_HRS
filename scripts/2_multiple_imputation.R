@@ -32,7 +32,10 @@ hrs_selected %>%
   geom_density() +
   theme_minimal()
 
+# Ahead did not have memimp until 1998
+
 with(hrs_selected, table(hacohort, useNA = "ifany"))
+with(hrs_selected, table(is.na(r3memimp), hacohort, useNA = "ifany"))
 # HRS ahead overlap, AHEAD only, HRS only
 with(hrs_selected, table(hacohort, r3wtresp == 0, useNA = "ifany"))
 
@@ -508,7 +511,7 @@ hrs_imponly_r3resp_memimp_long <- imp_pmm_stacked %>%
   mutate(impute_mem = case_when(is.na(memimp_pre) & !is.na(memimp) ~ 1,
                                 !is.na(memimp_pre) ~ 0))
 # Sanity check
-with(hrs_imponly_r3resp_memimp_long, table(impute_mem, wave, useNA = "ifany"))
+with(hrs_imponly_r3resp_memimp_long %>% filter(wave != 2), table(impute_mem, wave, useNA = "ifany"))
 with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1), summary(memimp))
 with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0), summary(memimp))
 with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1, wave == 3), summary(memimp))
@@ -573,7 +576,45 @@ hrs_memimp_preandpost_imp %>%
                 width = 0.2) +
   scale_y_continuous(limits = c(0.45, 1.25)) +
   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time (HRS sample only, analytic sample pre imputation)",
+  labs(title = "Mean memory score over time",
+       x = "year",
+       y = "Mean memory score") +
+  theme_bw()
+
+##---- imputed analytic sample by cohort ----
+hrs_imp_r3resp_memimp_long <- imp_pmm_stacked %>%
+  left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN") %>%
+  filter(imp == 1) %>%
+  mutate(wave = as.numeric(wave))
+hrs_imp_r3resp_memimp_mean_cohort <- hrs_imp_r3resp_memimp_long %>%
+  group_by(wave, hacohort) %>%
+  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp)))) %>%
+  filter(wave != 2)
+hrs_memimp_mean_cohort <- hrs_memimp_long %>%
+  left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN") %>%
+  group_by(wave, hacohort) %>%
+  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+
+hrs_memimp_preandpost_imp_cohort <- hrs_imp_r3resp_memimp_mean_cohort %>%
+  mutate(sample = "imputed") %>%
+  bind_rows(hrs_memimp_mean_cohort %>%
+              mutate(sample = "pre imputation"))
+
+hrs_memimp_preandpost_imp_cohort %>%
+  filter(hacohort != 0) %>%
+  mutate(year = (wave - 5)*2 + 2000) %>%
+  ggplot(aes(x = year, y = mean_memimp, color = sample)) +
+  geom_point() +
+  geom_line(aes(linetype = as.factor(hacohort))) +
+  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+                    ymax = mean_memimp + 1.96*se_memimp),
+                width = 0.2) +
+  # scale_y_continuous(limits = c(0.2, 1.3)) +
+  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+  scale_linetype_manual(values = c("solid", "dashed"), name = "cohort", labels = c("AHEAD", "HRS")) +
+  labs(title = "Mean memory score over time",
        x = "year",
        y = "Mean memory score") +
   theme_bw()
