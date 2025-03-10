@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -cwd #uses current working directory
 # error = Merged with joblog
-#$ -o /u/home/y/yingyanw/edu_cog_CHARLS/joblogs/joblog.$JOB_ID.$TASK_ID #creates a file called joblog.jobidnumber to write to. 
+#$ -o /u/home/y/yingyanw/flu_cog_HRS/joblogs/joblog.$JOB_ID.$TASK_ID #creates a file called joblog.jobidnumber to write to. 
 #$ -j y 
 #$ -l h_rt=24:00:00,h_data=12G #requests 24 hours, 12GB of data (per core)
 #$ -pe shared 5 #requests 5 cores
@@ -17,7 +17,7 @@
 # load the job environment:
 . /u/local/Modules/default/init/modules.sh
 module load R/4.2.2 #loads R/4.2.2 for use 
-export OMP_NUM_THREADS=1 #uses max 1 threads (needs to match -pe shared)
+export OMP_NUM_THREADS=5 #uses max 1 threads (needs to match -pe shared)
 
 
 echo "======"
