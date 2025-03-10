@@ -28,8 +28,6 @@ args
 # library(haven) # Read data
 library(dplyr)
 library(tidyverse)
-library(data.table)
-library(stringr)
 library(lmtp)
 library(SuperLearner) # Super Learner
 library(future) # Parallel folds
@@ -90,6 +88,7 @@ print(intervention)
 print(num_imp)
 
 dt_imp_wide_imp1 <- hrs_imp_r3resp_wide %>% filter(imp == num_imp)
+nrow(dt_imp_wide_imp1) # 19845
 
 #---- Analysis ----
 if (intervention == "nc"){
@@ -107,9 +106,10 @@ if (intervention == "nc"){
               weights = dt_imp_wide_imp1$r3wtresp,
               folds = 1)
   }
-  lmtp_nc_results <- lapply(seq_along(waves_fu), lmtp_nc)
+  temp <- lapply(seq_along(waves_fu), lmtp_nc)
   (end_nc <- Sys.time())
   end_nc - start_nc
+  assign(paste0("lmtp_nc_results_imp_", num_imp), temp)
 }
 
 # "Sustained" with super learner
