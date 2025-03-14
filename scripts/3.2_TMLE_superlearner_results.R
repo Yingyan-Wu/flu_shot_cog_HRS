@@ -145,6 +145,7 @@ save(results_pe_se, results_contrasts,
      file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
 
 #---- Calculate the results using rubin's rule ----
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
   reframe(
@@ -176,8 +177,9 @@ results_contrasts_rubin <- results_contrasts %>%
 #---- Table and plots ----
 # Trajectory plot
 results_pe_se_rubin %>%
-  # filter(Intervention != "Continuous no flu shot") %>%
-  mutate(type = factor(type, levels = c("Continuous no flu shot", "Natural course", "Continuous flu shot"))) %>%
+  filter(type != "Continuous no flu shot") %>%
+  mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
+  # mutate(type = factor(type, levels = c("Continuous no flu shot", "Natural course", "Continuous flu shot"))) %>%
   # ggplot(aes(x = survey_year, y = point_est, color = type)) +
   ggplot(aes(x = fu_year, y = point_est_rubin, color = type)) +
   geom_point(position = position_dodge((width = 1))) +
@@ -185,17 +187,24 @@ results_pe_se_rubin %>%
   geom_errorbar(aes(ymin = ll_rubin, ymax = ul_rubin),
                 position = position_dodge((width = 1)),
                 width = 0.8) +
-  # scale_y_continuous(breaks = seq(0, 1.25, by = 0.2)) +
+  scale_y_continuous(breaks = seq(-0.70, 1, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 24, by = 2)) +
   # scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
-                     labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
-  # geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
+  scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
+                     labels = c("Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
+  # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
+  #                    labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
+  labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
        x = "Follow up years",
        y = "Memory z-score") +
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        text = element_text(size = 12, color = "black"), 
+        strip.text.x = element_text(size = 12, color = "black"),
+        strip.text.y = element_text(size = 12, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"), 
+        axis.text.y = element_text(size = 12, color = "black"),
+        legend.text = element_text(size = 12, color = "black"))
 ggsave(here::here("output", "figures", "tmle_results_SL_ahead_hrs_memimp_impute.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
