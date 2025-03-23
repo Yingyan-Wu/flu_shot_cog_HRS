@@ -424,8 +424,7 @@ for (wave in 2:15){
 
 #---- FLU SHOT ----
 ##---- Check the flusht ----
-# We only look at flu shot questions from wave 3 to 13
-flusht_wide <- RAND %>% select(HHIDPN, paste0("r", 3:13, "flusht"))
+flusht_wide <- RAND %>% select(HHIDPN, paste0("r", 3:15, "flusht"))
 # Check the distribution
 # view(flusht_wide %>% filter(!is.na(r4flusht)))
 flusht_wide %>% select(-HHIDPN) %>% apply(., 2, function(x) table(!is.na(x)))
@@ -466,55 +465,102 @@ flusht_wide %<>%
                                 TRUE ~ rowSums(across(contains("flusht")), na.rm = TRUE)))
 with(flusht_wide, table(num_flusht, useNA = "ifany"))
 
-# Only responses at alternative waves at: waves 3, 5, 7, 9, 11, 13
+# Only responses at alternative waves from waves 3 to 15
 flusht_wide %<>%
   mutate(num_flusht_alt = case_when(
-    rowSums(!is.na(across(paste0("r", seq(3, 13, by = 2), "flusht")))) == 0 ~ NA_real_,
-    TRUE ~ rowSums(across(paste0("r", seq(3, 13, by = 2), "flusht")), na.rm = TRUE)))
+    rowSums(!is.na(across(paste0("r", seq(3, 15, by = 2), "flusht")))) == 0 ~ NA_real_,
+    TRUE ~ rowSums(across(paste0("r", seq(3, 15, by = 2), "flusht")), na.rm = TRUE)))
 with(flusht_wide, table(num_flusht_alt, useNA = "ifany"))
 
 # flusht_wide %>% filter(seq_flusht == 1) %>% view()
 
-##---- Creating sub cohorts ----
-# 4 subcohorts of flushot
-# Sub cohort 1: 1996, 2000, 2004
-# Sub cohort 2: 2000, 2004, 2008
-# Sub cohort 3: 2004, 2008, 2012
-# Sub cohort 4: 2008, 2012, 2016
-subcohorts <- c("960004", "000408", "040812", "081216")
-subcohort_hrswaves <- list(seq(3, 7, by = 2),
-                           seq(5, 9, by = 2),
-                           seq(7, 11, by = 2),
-                           seq(9, 13, by = 2))
+#---- Dropping people ----
+##---- 1. Dropping those who still missing age at e every wave ----
+table(hrs$female, useNA = "ifany")
+hrs %>%
+  select(contains("age_v2")) %>%
+  apply(., 2, summary)
+with(hrs, table(is.na(rabdate))) # n = 1 missing age
 
-for (i in 1:length(subcohorts)){
-  hrs %<>%
-    mutate(!!paste0("flusht_", subcohorts[[i]]) := 
-             case_when(rowSums(is.na(across(
-               paste0("r", subcohort_hrswaves[[i]], "flusht")))) == 0 ~ 1,
-               TRUE ~ 0))
-  
-  flusht_temp <- hrs %>%
-    filter(!!sym(paste0("flusht_", subcohorts[[i]])) == 1) %>%
-    select(HHIDPN, ends_with("flusht")) %>%
-    mutate(w1_flusht = !!sym(paste0("r", subcohort_hrswaves[[i]][[1]], "flusht")),
-           w3_flusht = !!sym(paste0("r", subcohort_hrswaves[[i]][[2]], "flusht")),
-           w5_flusht = !!sym(paste0("r", subcohort_hrswaves[[i]][[3]], "flusht")),
-           w1_hrswave = subcohort_hrswaves[[i]][[1]],
-           w3_hrswave = subcohort_hrswaves[[i]][[2]],
-           w5_hrswave = subcohort_hrswaves[[i]][[3]],
-           subcohort = subcohorts[[i]])
-  assign(paste0("flusht_c", i), flusht_temp)
-}
+hrs_filtered <- hrs %>%
+  filter(!is.na(rabdate)) # n = 42404
 
-flusht_cohorts <- bind_rows(flusht_c1, flusht_c2, flusht_c3, flusht_c4)
-# Sanity check
-hrs %>% select(starts_with("flusht")) %>% 
-  apply(., 2, table, useNA = "ifany")
+##---- 2. Filter on participants eligible for 1996 interview ----
+# Filter on participants eligible for 1996 interview
+# and participated in 1994 interview to be able to have covariate values
+r3_resp_id <- hrs_filtered %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+# filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+r2_notinsamp_id <-  hrs_filtered %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
+r3_resp_r2insamp_id <- r3_resp_id[!r3_resp_id %in% r2_notinsamp_id] # 19845
+# hrs_id <- hrs_filtered %>% filter(hacohort == 3) %>% pull(HHIDPN) %>% unique()
+# table(r3_resp_r2insamp_id %in% hrs_id) # n=12362
+hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r3_resp_r2insamp_id)
+# n=19845
+
+#---- Select the variables ----
+hrs_selected <- hrs_filtered %>%
+  select(HHIDPN, raddate, hacohort,
+         contains("inw"),
+         contains("iwstat"),
+         ends_with("dead"),
+         contains("wtresp"),
+         contains("age_v2"),
+         female, raceeth, raedyrs, ed_cat, 
+         contains(c("income_pp", "itot", "hhres")),
+         contains(c("mstat", "insurance")),
+         contains(c("smoken", "cesd", "flone")), -(contains("flonex")),
+         contains(c("hibpe", "diabe", "cancre", "stroke", "hearte", "lunge")),
+         contains(c("adl", "iadl")),
+         contains("flusht"),
+         contains(c("memimp", "expert_p", "expert_dem"))
+  ) %>%
+  # Change the names of household variable (h) to individual variable (r)
+  rename_at(vars(contains(c("hhres", "itot"))), ~str_replace(.x, "h", "r")) # This will only replace the first h letter
+
+#---- Save the data ----
+saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
+save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected.RData"))
+
+#---- OLD ----
+# ##---- Creating sub cohorts ----
+# # 4 subcohorts of flushot
+# # Sub cohort 1: 1996, 2000, 2004
+# # Sub cohort 2: 2000, 2004, 2008
+# # Sub cohort 3: 2004, 2008, 2012
+# # Sub cohort 4: 2008, 2012, 2016
+# subcohorts <- c("960004", "000408", "040812", "081216")
+# subcohort_hrswaves <- list(seq(3, 7, by = 2),
+#                            seq(5, 9, by = 2),
+#                            seq(7, 11, by = 2),
+#                            seq(9, 13, by = 2))
+# 
+# for (i in 1:length(subcohorts)){
+#   hrs %<>%
+#     mutate(!!paste0("flusht_", subcohorts[[i]]) := 
+#              case_when(rowSums(is.na(across(
+#                paste0("r", subcohort_hrswaves[[i]], "flusht")))) == 0 ~ 1,
+#                TRUE ~ 0))
+#   
+#   flusht_temp <- hrs %>%
+#     filter(!!sym(paste0("flusht_", subcohorts[[i]])) == 1) %>%
+#     select(HHIDPN, ends_with("flusht")) %>%
+#     mutate(w1_flusht = !!sym(paste0("r", subcohort_hrswaves[[i]][[1]], "flusht")),
+#            w3_flusht = !!sym(paste0("r", subcohort_hrswaves[[i]][[2]], "flusht")),
+#            w5_flusht = !!sym(paste0("r", subcohort_hrswaves[[i]][[3]], "flusht")),
+#            w1_hrswave = subcohort_hrswaves[[i]][[1]],
+#            w3_hrswave = subcohort_hrswaves[[i]][[2]],
+#            w5_hrswave = subcohort_hrswaves[[i]][[3]],
+#            subcohort = subcohorts[[i]])
+#   assign(paste0("flusht_c", i), flusht_temp)
+# }
+# 
+# flusht_cohorts <- bind_rows(flusht_c1, flusht_c2, flusht_c3, flusht_c4)
+# # Sanity check
+# hrs %>% select(starts_with("flusht")) %>% 
+#   apply(., 2, table, useNA = "ifany")
 
 
 # ##---- Create aux variables ----
-# # PENDING
 # # Long dataset
 # flusht_long <- RAND %>%
 #   select(HHIDPN, contains("flusht")) %>%
@@ -586,102 +632,3 @@ hrs %>% select(starts_with("flusht")) %>%
 #   mutate(prop_flusht = n_flusht/n_flusht_wave)
 # 
 # summarytools::freq(flusht_wide_2_3_8$prop_flusht)
-
-#---- Dropping people ----
-##---- 1. Dropping those who still missing age at e every wave ----
-table(hrs$female, useNA = "ifany")
-hrs %>%
-  select(contains("age_v2")) %>%
-  apply(., 2, summary)
-with(hrs, table(is.na(rabdate))) # n = 1 missing age
-
-hrs_filtered <- hrs %>%
-  filter(!is.na(rabdate)) # n = 42404
-
-##---- 2. Filter on participants eligible for 1996 interview ----
-# Filter on participants eligible for 1996 interview
-# and participated in 1994 interview to be able to have covariate values
-r3_resp_id <- hrs_filtered %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
-# filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
-r2_notinsamp_id <-  hrs_filtered %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
-r3_resp_r2insamp_id <- r3_resp_id[!r3_resp_id %in% r2_notinsamp_id] # 19845
-hrs_id <- hrs_filtered %>% filter(hacohort == 3) %>% pull(HHIDPN) %>% unique()
-# table(r3_resp_r2insamp_id %in% hrs_id) # n=12362
-hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r3_resp_r2insamp_id)
-                                        # hacohort == 3)
-
-#---- Select the variables ----
-hrs_selected <- hrs_filtered %>%
-  select(HHIDPN, raddate, hacohort,
-         contains("inw"),
-         contains("iwstat"),
-         ends_with("dead"),
-         contains("wtresp"),
-         contains("age_v2"),
-         female, raceeth, raedyrs, ed_cat, 
-         contains(c("income_pp", "itot", "hhres")),
-         contains(c("mstat", "insurance")),
-         contains(c("smoken", "cesd", "flone")), -(contains("flonex")),
-         contains(c("hibpe", "diabe", "cancre", "stroke", "hearte", "lunge")),
-         contains(c("adl", "iadl")),
-         contains("flusht"),
-         contains(c("memimp", "expert_p", "expert_dem"))
-  ) %>%
-  # Change the names of household variable (h) to individual variable (r)
-  rename_at(vars(contains(c("hhres", "itot"))), ~str_replace(.x, "h", "r")) # This will only replace the first h letter
-
-#---- Save the data ----
-saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
-save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected.RData"))
-
-# #---- Trajectory plot ----
-# flusht_fortraj <- hrs_selected %>%
-#   select(contains("flusht")) %>%
-#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
-#                                                          TRUE ~ .)))) %>%
-#   group_by(across(all_of(paste0("r", 3:15, "flusht")))) %>%
-#   summarize(count = n()) %>% ungroup()
-# 
-# # With missingness
-# flusht_fortraj %>%
-#   ggplot(aes(y = count,
-#              axis1 = r3flusht,
-#              axis2 = r5flusht,
-#              axis3 = r7flusht,
-#              axis4 = r9flusht,
-#              axis5 = r11flusht,
-#              axis6 = r13flusht,
-#              axis7 = r15flusht)) +
-#   geom_alluvium(aes(fill=r3flusht)) +
-#   geom_stratum(alpha = 0) +
-#   geom_label(stat = "stratum", aes(label=after_stat(stratum))) +
-#   labs(fill = "Flu shot acceptance") +
-#   scale_fill_brewer(type = "qual", palette = "Paired",
-#                     labels = c("Not accepted", "Accepted", "Missing")) +
-#   scale_x_continuous(limits = c(1, 7), 
-#                      breaks = seq(1, 7, by = 2)) +
-#   xlab("Waves") +
-#   ylab("Count") +
-#   theme_minimal()
-# 
-# # Sub cohort traj
-# flusht_cohorts_fortraj <- flusht_cohorts %>%
-#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
-#                                                          TRUE ~ .)))) %>%
-#   group_by(across(all_of(paste0("w", seq(1, 5, by = 2), "_flusht")))) %>%
-#   summarize(count = n()) %>% ungroup()
-# 
-# flusht_cohorts_fortraj %>%
-#   ggplot(aes(y = count,
-#              axis1 = w1_flusht,
-#              axis2 = w3_flusht,
-#              axis3 = w5_flusht)) +
-#   geom_alluvium(aes(fill = w1_flusht)) +
-#   geom_stratum(alpha = 0) +
-#   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
-#   labs(fill = "Flu shot acceptance") +
-#   scale_fill_brewer(type = "qual", palette = "Paired",
-#                     labels = c("Not accepted", "Accepted", "Missing")) +
-#   xlab("Waves") +
-#   ylab("Count") +
-#   theme_minimal()
