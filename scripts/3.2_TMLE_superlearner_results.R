@@ -159,6 +159,8 @@ results_pe_se_rubin <- results_pe_se %>%
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 1996)
+saveRDS(results_pe_se_rubin, 
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot.RDS"))
 
 results_contrasts_rubin <- results_contrasts %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -195,8 +197,8 @@ results_pe_se_rubin %>%
   # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
   #                    labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
   labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
-       x = "Follow up years",
-       y = "Memory z-score") +
+    x = "Follow up years",
+    y = "Memory z-score") +
   theme_bw() +
   theme(legend.position = "bottom",
         text = element_text(size = 12, color = "black"), 
@@ -230,7 +232,7 @@ for (type in c("0sus", "nc", "1sus", "1sus_nc", "1sus_0sus")){
       !!paste0("ll_", type) := !!sym(paste0("pe_", type)) - qnorm(0.975)*!!sym(paste0("se_", type)),
       !!paste0("ul_", type) := !!sym(paste0("pe_", type)) + qnorm(0.975)*!!sym(paste0("se_", type))) %>%
     mutate(across(c(paste0("pe_", type), paste0("ll_", type), paste0("ul_", type)), 
-                  ~round(., 2))) %>%
+                  ~sprintf(., fmt = '%#.2f'))) %>%
     mutate(!!paste0("pe_ci_", type) := 
              paste0(!!sym(paste0("pe_", type)), " (", !!sym(paste0("ll_", type)), ", ", 
                     !!sym(paste0("ul_", type)), ")"))

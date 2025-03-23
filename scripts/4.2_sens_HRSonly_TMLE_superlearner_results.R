@@ -144,7 +144,11 @@ save(results_pe_se, results_contrasts,
 
 #---- Calculate the results using rubin's rule ----
 load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_HRSonly.RData"))
-results_pe_se_rubin <- results_pe_se %>%
+results_pe_se_sens <- results_pe_se
+results_contrasts_sens <- results_contrasts
+num_imp = 10
+
+results_pe_se_rubin_sens <- results_pe_se_sens %>%
   group_by(type, wave) %>%
   reframe(
     point_est_rubin = mean(point_est),
@@ -158,7 +162,7 @@ results_pe_se_rubin <- results_pe_se %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 1996)
 
-results_contrasts_rubin <- results_contrasts %>%
+results_contrasts_rubin_sens <- results_contrasts_sens %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
   reframe(
     point_est_rubin = mean(point_est),
@@ -174,7 +178,7 @@ results_contrasts_rubin <- results_contrasts %>%
 
 #---- Table and plots ----
 # Trajectory plot
-results_pe_se_rubin %>%
+results_pe_se_rubin_sens %>%
   # filter(Intervention != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
   # ggplot(aes(x = survey_year, y = point_est, color = type)) +
@@ -184,7 +188,6 @@ results_pe_se_rubin %>%
   geom_errorbar(aes(ymin = ll_rubin, ymax = ul_rubin),
                 position = position_dodge((width = 1)),
                 width = 0.8) +
-  # scale_y_continuous(breaks = seq(0, 1.25, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 24, by = 2)) +
   # scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
   scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
@@ -205,7 +208,7 @@ ggsave(here::here("output", "figures", "tmle_results_SL_ahead_hrs_memimp_impute_
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 # Contrast table
-results_contrasts_year_table <- results_contrasts_rubin %>%
+results_contrasts_year_table_sens <- results_contrasts_rubin_sens %>%
   mutate(across(c(intervention_index, intervention_ref),
                 ~case_when(. == "Natural course" ~ "nc",
                            . == "Continuous flu shot" ~ "1sus",
@@ -219,20 +222,57 @@ results_contrasts_year_table <- results_contrasts_rubin %>%
          se_1sus_nc = sqrt(se_1sus^2 + se_nc^2))
 
 for (type in c("nc", "1sus", "1sus_nc")){
-  results_contrasts_year_table %<>%
+  results_contrasts_year_table_sens %<>%
     mutate(
       !!paste0("ll_", type) := !!sym(paste0("pe_", type)) - qnorm(0.975)*!!sym(paste0("se_", type)),
       !!paste0("ul_", type) := !!sym(paste0("pe_", type)) + qnorm(0.975)*!!sym(paste0("se_", type))) %>%
     mutate(across(c(paste0("pe_", type), paste0("ll_", type), paste0("ul_", type)), 
-                  ~round(., 2))) %>%
+                  ~sprintf(., fmt = '%#.2f'))) %>%
     mutate(!!paste0("pe_ci_", type) := 
              paste0(!!sym(paste0("pe_", type)), " (", !!sym(paste0("ll_", type)), ", ", 
                     !!sym(paste0("ul_", type)), ")"))
 }
 
-results_contrasts_year_table %>%
+results_contrasts_year_table_sens %>%
   select(fu_year_index, contains("pe_ci_")) %>%
   writexl::write_xlsx(
     here::here("output", "tables", 
                "sens_HRSonly_tmle_results_SL_ahead_hrs_memimp_impute_contrast.xlsx"))
 
+#---- Main and sens on a same plot ----
+results_pe_se_rubin <- readRDS(here::here("data", "model_results", 
+                                          "lmtp_results_SL_rubin_forplot.RDS"))
+results_pe_se_rubin_main_sens <- results_pe_se_rubin %>%
+  filter(type %in% c("Natural course", "Continuous flu shot")) %>%
+  mutate(anlys = "HRS and Ahead") %>%
+  bind_rows(results_pe_se_rubin_sens %>%
+              mutate(anlys = "HRS only"))
+
+# Traj plot main and sens
+results_pe_se_rubin_main_sens %>%
+  mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot")),
+         anlys = factor(anlys, levels = c("HRS and Ahead", "HRS only"))) %>%
+  ggplot(aes(x = fu_year, y = point_est_rubin, color = type, linetype = anlys)) +
+  geom_point(position = position_dodge((width = 1))) +
+  geom_line(position = position_dodge((width = 1))) +
+  geom_errorbar(aes(ymin = ll_rubin, ymax = ul_rubin),
+                position = position_dodge((width = 1)),
+                width = 0.8) +
+  scale_x_continuous(breaks = seq(0, 24, by = 2)) +
+  # scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+  scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
+                     labels = c("Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
+  # geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
+    x = "Follow up years",
+    y = "Memory z-score") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        text = element_text(size = 12, color = "black"), 
+        strip.text.x = element_text(size = 12, color = "black"),
+        strip.text.y = element_text(size = 12, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"), 
+        axis.text.y = element_text(size = 12, color = "black"),
+        legend.text = element_text(size = 12, color = "black"))
+ggsave(here::here("output", "figures", "main_sens_tmle_results_SL_ahead_hrs_memimp_impute.png"), 
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)
