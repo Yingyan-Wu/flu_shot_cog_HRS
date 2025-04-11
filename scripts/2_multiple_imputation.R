@@ -464,7 +464,7 @@ imp_pmm_stacked %<>%
   mutate(
     r3wtresp = r3wtresp*1000, # scale it back from per thousand
     income_pp = itot/sqrt(hhres)*1000000, # scale it back from per million
-    mstat_2cat = case_when(mstat %in% c(1, 2, 3) ~ 1, 
+    mstat_2cat = case_when(mstat %in% c(1, 2, 3) ~ 1, # Married/partnered
                            # Separated/divorced/widowed/not married/Widowed
                            mstat %in% c(4, 5, 6, 7, 8) ~ 0),
     adl_2cat = case_when(adl6a == 0 ~ 0,

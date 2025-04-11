@@ -559,7 +559,27 @@ save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs
 # hrs %>% select(starts_with("flusht")) %>% 
 #   apply(., 2, table, useNA = "ifany")
 
-
+# # Sub cohort traj
+# flusht_cohorts_fortraj <- flusht_cohorts %>%
+#   mutate(across(contains("flusht"), ~as.factor(case_when(is.na(.) ~ 999,
+#                                                          TRUE ~ .)))) %>%
+#   group_by(across(all_of(paste0("w", seq(1, 5, by = 2), "_flusht")))) %>%
+#   summarize(count = n()) %>% ungroup()
+# 
+# flusht_cohorts_fortraj %>%
+#   ggplot(aes(y = count,
+#              axis1 = w1_flusht,
+#              axis2 = w3_flusht,
+#              axis3 = w5_flusht)) +
+#   geom_alluvium(aes(fill = w1_flusht)) +
+#   geom_stratum(alpha = 0) +
+#   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+#   labs(fill = "Flu shot acceptance") +
+#   scale_fill_brewer(type = "qual", palette = "Paired",
+#                     labels = c("Not accepted", "Accepted", "Missing")) +
+#   xlab("Waves") +
+#   ylab("Count") +
+#   theme_minimal()
 # ##---- Create aux variables ----
 # # Long dataset
 # flusht_long <- RAND %>%

@@ -13,7 +13,6 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(scipen = 999)
 
 #---- Load the data ----
-# memimp not imputed
 hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hrs_outcome.RDS"))
 
 #---- Preparing the data ----
@@ -21,7 +20,7 @@ hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hr
 with(hrs_imp, table(wave, imp, useNA = "ifany"))
 
 bl_vars <- c("r3age_v2", "female", "raceeth", "raedyrs", "r3wtresp")
-tv_vars <- c("age_v2", "mstat", "income_pp", 
+tv_vars <- c("age_v2", "mstat_2cat", "income_pp", 
              "insurance_2cat", "smoken", "cesd", "flone",
              # Health conditions
              "hibpe", "diabe", "cancre", "stroke", "hearte", "lunge",

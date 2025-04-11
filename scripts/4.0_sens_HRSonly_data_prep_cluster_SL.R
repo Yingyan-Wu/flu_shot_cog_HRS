@@ -155,3 +155,7 @@ hrs_imp_r3resp_wide %>% filter(if_all(contains("flusht"), ~ .x == 0)) %>%
 #---- Save the elements for the Super Learner ----
 save(hrs_imp_r3resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_hrsonly_20250308.RData"))
+
+# Descriptives
+sum(hrs_imp_r3resp_wide$r3wtresp)
+mean(hrs_imp_r3resp_wide$r3age_v2)
