@@ -28,6 +28,14 @@ total_scenarios[which(!total_scenarios %in% scenarios_res)]
 for (s in scenarios_res){
   load(paste0(results_folder, "tmle_SL_scenario_", s, ".RData"))
 }
+# lmtp_tmle function returned these values for every participant
+# 1. eif
+# 2. id
+# 3. normalized weights (the weights fed into the weights argument, sampling weights
+# in our case)
+# 4. outcome_reg: An n x Tau + 1 matrix of outcome regression predictions. The mean of the first
+# column is used for calculating theta (potential outcomes).
+# 5. density_ratios: An n x Tau matrix of the estimated, non-cumulative, density ratios.
 
 # #---- Fits ----
 # for (wave in waves_fu){
@@ -42,8 +50,9 @@ for (s in scenarios_res){
 # }
 
 #---- Estimates ----
-lmtp_pe_se <- function(wave, intervention, imp){
+lmtp_pe_se <- function(wave = 3, intervention, imp){
   if (intervention == "nc"){
+    # All waves were in one list
     lmtp_list <- get(paste0("lmtp_nc_results_imp_", imp))
     return(sapply(lmtp_list, function(x) c(x$theta, x$standard_error)) %>%
              t() %>%
@@ -53,6 +62,7 @@ lmtp_pe_se <- function(wave, intervention, imp){
                     wave = waves_fu,
                     imp = imp))
   } else {
+    # waves were separated from each object
     lmtp_object <- get(paste0("y_w", wave, "_", intervention, "_", imp))
     return(
       c(lmtp_object$theta, lmtp_object$standard_error) %>%
@@ -67,7 +77,7 @@ lmtp_pe_se <- function(wave, intervention, imp){
 
 results_pe_se <- 
   lapply(seq_along(1:num_imp), 
-         function(x) lmtp_pe_se(wave = 3, intervention = "nc", imp = x)) %>%
+         function(x) lmtp_pe_se(intervention = "nc", imp = x)) %>%
   do.call(rbind,. )
 
 for (w in waves_fu){
@@ -144,7 +154,60 @@ results_contrasts <- raw_results_contrasts %>%
 save(results_pe_se, results_contrasts, 
      file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
 
-#---- Calculate the results using rubin's rule ----
+#---- Potential outcomes ----
+n_analytic_data <- 19845 # for creating fake id to organizing dataset (pivot..)
+get_po <- function(wave = 3, intervention, imp){
+  if (intervention == "nc"){
+    lmtp_list <- get(paste0("lmtp_nc_results_imp_", imp))
+    return(sapply(lmtp_list, function(x) x$outcome_reg[, 1]) %>%
+             as.data.frame() %>%
+             set_colnames(paste0("po_w", waves_fu)) %>%
+             mutate(fake_id = 1:n_analytic_data,
+                    type = intervention,
+                    imp = imp))
+  } else {
+    lmtp_object <- get(paste0("y_w", wave, "_", intervention, "_", imp))
+    return(
+      lmtp_object$outcome_reg[, 1] %>%
+        as.data.frame() %>%
+        set_colnames("po") %>%
+        mutate(fake_id = 1:n_analytic_data,
+               type = intervention,
+               wave = w,
+               imp = imp))
+  }
+}
+
+results_po <- lapply(seq_along(1:num_imp), 
+                     function(x) get_po(intervention = "nc", imp = x)) %>%
+  do.call(rbind,. )
+
+results_po_sus <- tibble() 
+for (w in waves_fu){
+  for (i in c("1sus", "0sus")){
+    for (imp in 1:num_imp){
+      tryCatch({
+        results_po_sus  %<>% rbind(., get_po(w, i, imp))
+      }, error = function(e) print(e))
+    }
+  }
+}
+
+results_po_sus_wide <- results_po_sus %>%
+  pivot_wider(id_cols = c("fake_id", "type", "imp"), 
+              names_from = "wave", values_from = "po",
+              names_glue = "po_w{wave}")
+
+results_po %<>% rbind(results_po_sus_wide)
+# Sanity check
+with(results_po, table(type, imp))
+
+##---- Save the POs ----
+save(results_po, 
+     file = here::here("data", "model_results", "lmtp_results_SL_po.RData"))
+
+#---- Rubin's rule ----
+##---- PE CI ----
 load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
@@ -177,7 +240,7 @@ results_contrasts_rubin <- results_contrasts %>%
          fu_year_index = survey_year_index - 1996)
 
 #---- Table and plots ----
-# Trajectory plot
+##---- Trajectory plot ----
 results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
@@ -207,10 +270,27 @@ results_pe_se_rubin %>%
         axis.text.x = element_text(size = 12, color = "black"), 
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "tmle_results_SL_ahead_hrs_memimp_impute.png"), 
+ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
-# Contrast table
+##---- Trajectory table ----
+results_pe_se_year_table <- results_pe_se_rubin %>%
+  filter(type != "Continuous no flu shot") %>%
+  mutate(
+    type = factor(type, levels = c("Natural course", "Continuous flu shot")),
+    across(point_est_rubin:ul_rubin, 
+           ~sprintf(., fmt = '%#.2f')),
+    pe_ci = paste0(point_est_rubin, " (", ll_rubin, ", ", ul_rubin, ")")) %>%
+  arrange(type) %>%
+  select(survey_year, fu_year, type, pe_ci) %>%
+  pivot_wider(names_from = type, values_from = pe_ci, 
+              names_glue = "{type} (95% CI)")
+
+results_pe_se_year_table %>%
+  writexl::write_xlsx(here::here("output", "tables", 
+                                 "lmtp_pe_SL_ahead_hrs_memimp_impute.xlsx"))
+
+##---- Contrast table ----
 results_contrasts_year_table <- results_contrasts_rubin %>%
   mutate(across(c(intervention_index, intervention_ref),
                 ~case_when(. == "Natural course" ~ "nc",
@@ -242,5 +322,5 @@ results_contrasts_year_table %>%
   select(fu_year_index, contains("pe_ci_")) %>%
   writexl::write_xlsx(
     here::here("output", "tables", 
-               "tmle_results_SL_ahead_hrs_memimp_impute_contrast.xlsx"))
+               "lmtp_contrasts_SL_ahead_hrs_memimp_impute.xlsx"))
 
