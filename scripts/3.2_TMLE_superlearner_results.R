@@ -31,10 +31,11 @@ for (s in scenarios_res){
 # lmtp_tmle function returned these values for every participant
 # 1. eif
 # 2. id
-# 3. normalized weights (the weights fed into the weights argument, sampling weights
+# 3. weights: normalized weights (the weights fed into the weights argument, sampling weights
 # in our case)
-# 4. outcome_reg: An n x Tau + 1 matrix of outcome regression predictions. The mean of the first
-# column is used for calculating theta (potential outcomes).
+# 4. outcome_reg: An n x Tau + 1 matrix of outcome regression predictions. 
+# The (weighted) mean of the first column is used for calculating theta (PE) using
+# `weights` (normalized weights)
 # 5. density_ratios: An n x Tau matrix of the estimated, non-cumulative, density ratios.
 
 # #---- Fits ----
@@ -150,31 +151,44 @@ results_contrasts <- raw_results_contrasts %>%
                            . == "1sus" ~ "Continuous flu shot",
                            . == "0sus" ~ "Continuous no flu shot")))
 
-##---- Save the results ----
-save(results_pe_se, results_contrasts, 
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
-
 #---- Potential outcomes ----
-n_analytic_data <- 19845 # for creating fake id to organizing dataset (pivot..)
+# Obtain predicted potential outcomes and normalized sampling weights
+# normalized sampling weights were slightly different across imputation
+# Theta was calculated by weighted mean of potential outcomes from the first column
+# of `outcome_reg`
+
+# # Test
+# table(lmtp_nc_results_imp_1[[1]]$weights == lmtp_nc_results_imp_1[[11]]$weights)
+# table(round(y_w3_1sus_1$weights, 1) == round(y_w3_1sus_3$weights, 1))
+# hist(y_w3_1sus_1$weights)
+# hist(y_w3_1sus_3$weights)
+
+load(here::here("data", "analysis_data", "data_for_cluster_20250304.RData"))
+# The outcome_reg is organized by the order of participants in the input data
+# tested in later chunk
+HHIDPN_vec <- hrs_imp_r3resp_wide %>% filter(imp == 1) %>%
+  pull(HHIDPN)
+
 get_po <- function(wave = 3, intervention, imp){
   if (intervention == "nc"){
     lmtp_list <- get(paste0("lmtp_nc_results_imp_", imp))
-    return(sapply(lmtp_list, function(x) x$outcome_reg[, 1]) %>%
-             as.data.frame() %>%
-             set_colnames(paste0("po_w", waves_fu)) %>%
-             mutate(fake_id = 1:n_analytic_data,
-                    type = intervention,
-                    imp = imp))
+    po_dt <- lapply(lmtp_list, function(x) tibble(x$outcome_reg[, 1], x$weights)) %>%
+      do.call(cbind, .) %>%
+      set_colnames(as.vector(outer(c("po", "weights"), 
+                                   paste0("w", waves_fu), paste, sep = "_"))) %>%
+      mutate(HHIDPN = HHIDPN_vec,
+             type = intervention,
+             imp = imp)
+    return(po_dt)
   } else {
     lmtp_object <- get(paste0("y_w", wave, "_", intervention, "_", imp))
-    return(
-      lmtp_object$outcome_reg[, 1] %>%
-        as.data.frame() %>%
-        set_colnames("po") %>%
-        mutate(fake_id = 1:n_analytic_data,
-               type = intervention,
-               wave = w,
-               imp = imp))
+    po_dt_w <- tibble(lmtp_object$outcome_reg[, 1], lmtp_object$weights) %>%
+      set_colnames(c("po", "weights")) %>%
+      mutate(HHIDPN = HHIDPN_vec,
+             type = intervention,
+             wave = wave,
+             imp = imp)
+    return(po_dt_w)
   }
 }
 
@@ -194,15 +208,31 @@ for (w in waves_fu){
 }
 
 results_po_sus_wide <- results_po_sus %>%
-  pivot_wider(id_cols = c("fake_id", "type", "imp"), 
-              names_from = "wave", values_from = "po",
-              names_glue = "po_w{wave}")
+  pivot_wider(id_cols = c("HHIDPN", "type", "imp"), 
+              names_from = "wave", values_from = c("po", "weights"),
+              names_glue = "{.value}_w{wave}")
 
 results_po %<>% rbind(results_po_sus_wide)
 # Sanity check
 with(results_po, table(type, imp))
 
-##---- Save the POs ----
+# # Test: PO is sorted by the order of input data
+# hrs_imp1 <- hrs_imp_r3resp_wide %>% filter(imp == 1) %>%
+#   select(HHIDPN, r3age_v2, r3memimp, r3wtresp) %>%
+#   mutate(r3wtresp_norm = r3wtresp/mean(r3wtresp))
+# results_po_imp1 <- results_po %>%
+#   filter(imp == 1, type == "nc")
+# weights_w3_mat <- hrs_imp1 %>%
+#   select(HHIDPN, r3wtresp_norm) %>%
+#   cbind(results_po_imp1 %>%
+#           select(weights_w3)) %>%
+#   mutate(check = case_when(round(r3wtresp_norm, 6) == round(weights_w3, 6) ~ 1,
+#                            TRUE ~ 0))
+# with(weights_w3_mat, table(check, useNA = "ifany"))
+
+#---- Save the cleaned data results ----
+save(results_pe_se, results_contrasts, 
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
 save(results_po, 
      file = here::here("data", "model_results", "lmtp_results_SL_po.RData"))
 
