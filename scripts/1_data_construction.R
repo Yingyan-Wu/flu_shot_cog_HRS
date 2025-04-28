@@ -94,6 +94,7 @@ memimp %<>%
 
 # Sanity check
 colnames(memimp)
+memimp %>% select(contains("dementpimp")) %>% apply(., 2, mean, na.rm = T)
 
 demprob <- read_sas(here::here("data", "raw_data", "power_hrsdementia",
                                "hrsdementia_2024_1217.sas7bdat")) %>%
@@ -122,6 +123,8 @@ with(demprob %>%
        arrange(HHIDPN, HRS_year) %>%
        group_by(HHIDPN) %>%
        slice_tail(), table(hurd_dem))
+
+demprob_wide_expert %>% select(contains("expert_p")) %>% apply(., 2, mean, na.rm = T)
 
 ##---- merging data ----
 hrs <- RAND %>% left_join(memimp, by = "HHIDPN") %>% 
@@ -512,7 +515,7 @@ hrs_selected <- hrs_filtered %>%
          contains(c("hibpe", "diabe", "cancre", "stroke", "hearte", "lunge")),
          contains(c("adl", "iadl")),
          contains("flusht"),
-         contains(c("memimp", "expert_p", "expert_dem"))
+         contains(c("memimp", "dementpimp", "expert_p", "expert_dem"))
   ) %>%
   # Change the names of household variable (h) to individual variable (r)
   rename_at(vars(contains(c("hhres", "itot"))), ~str_replace(.x, "h", "r")) # This will only replace the first h letter
