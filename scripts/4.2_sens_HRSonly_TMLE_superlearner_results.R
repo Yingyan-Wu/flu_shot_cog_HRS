@@ -204,7 +204,7 @@ results_pe_se_rubin_sens %>%
         axis.text.x = element_text(size = 12, color = "black"), 
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "tmle_results_SL_ahead_hrs_memimp_impute_sens_HRSonly.png"), 
+ggsave(here::here("output", "figures", "sens_HRSonly_lmtp_traj_SL_ahead_hrs_memimp_impute.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 # Contrast table
@@ -237,7 +237,7 @@ results_contrasts_year_table_sens %>%
   select(fu_year_index, contains("pe_ci_")) %>%
   writexl::write_xlsx(
     here::here("output", "tables", 
-               "sens_HRSonly_tmle_results_SL_ahead_hrs_memimp_impute_contrast.xlsx"))
+               "sens_HRSonly_lmtp_contrasts_SL_ahead_hrs_memimp_impute.xlsx"))
 
 #---- Main and sens on a same plot ----
 results_pe_se_rubin <- readRDS(here::here("data", "model_results", 
@@ -274,5 +274,5 @@ results_pe_se_rubin_main_sens %>%
         axis.text.x = element_text(size = 12, color = "black"), 
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "main_sens_tmle_results_SL_ahead_hrs_memimp_impute.png"), 
+ggsave(here::here("output", "figures", "main_sens_lmtp_traj_SL_ahead_hrs_memimp_impute.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
