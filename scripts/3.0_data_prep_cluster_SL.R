@@ -19,7 +19,7 @@ hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hr
 # Sanity check
 with(hrs_imp, table(wave, imp, useNA = "ifany"))
 
-bl_vars <- c("r3age_v2", "female", "raceeth", "raedyrs", "r3wtresp")
+bl_vars <- c("r3age_v2", "female", "raceeth", "raedyrs", "rabyear", "r3wtresp")
 tv_vars <- c("age_v2", "mstat_2cat", "income_pp", 
              "insurance_2cat", "smoken", "cesd", "flone",
              # Health conditions

@@ -404,7 +404,8 @@ imp_temp <- list()
 for (i in 1:10){
   temp_bl <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>%
     select(HHIDPN, all_of(baseline_vars)) %>% unique() %>%
-    left_join(hrs_forimp %>% select(HHIDPN, r3age_v2), by = "HHIDPN")
+    left_join(hrs_forimp %>% select(HHIDPN, r3age_v2), by = "HHIDPN") %>%
+    left_join(hrs_selected %>% select(HHIDPN, rabyear), by = "HHIDPN")
   temp_tv_long <- complete(get(paste0("imp_pmm_", imp_num)), action = i) %>%
     select(-all_of(baseline_vars)) %>%
     mutate(iwstat = as.numeric(as.character(iwstat))) %>%
@@ -517,6 +518,14 @@ hrs_imp_r3resp_memimp_mean_cohort <- hrs_imp_r3resp_memimp_long %>%
   filter(wave != 2)
 
 # Not imputed
+hrs_memimp_long <- hrs_selected %>%
+  select(HHIDPN, contains("memimp")) %>%
+  pivot_longer(cols = contains("memimp"),
+               names_to = "wave",
+               values_to = "memimp",
+               names_pattern = "r(.*)memimp") %>%
+  mutate(wave = as.numeric(wave))
+
 r3memimp_mean <- mean(hrs_selected$r3memimp, na.rm = T)
 r3memimp_sd <- sd(hrs_selected$r3memimp, na.rm = T)
 hrs_memimp_mean_cohort <- hrs_memimp_long %>%
@@ -552,7 +561,6 @@ hrs_memimp_preandpost_imp_cohort %>%
 
 #---- Save imputed data ----
 saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hrs_outcome.RDS"))
-
 
 #---- OLD ----
 # ##---- Check the distribution of imputed memimp ----
@@ -597,13 +605,6 @@ saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_ah
 #   theme_bw()
 # 
 # ##---- Analytic sample not imputed ----
-# hrs_memimp_long <- hrs_selected %>%
-#   select(HHIDPN, contains("memimp")) %>%
-#   pivot_longer(cols = contains("memimp"),
-#                names_to = "wave",
-#                values_to = "memimp",
-#                names_pattern = "r(.*)memimp") %>%
-#   mutate(wave = as.numeric(wave))
 # hrs_memimp_mean <- hrs_memimp_long %>%
 #   group_by(wave) %>%
 #   summarise(mean_memimp = mean(memimp, na.rm = TRUE),

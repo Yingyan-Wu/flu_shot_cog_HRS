@@ -245,6 +245,9 @@ for (w in 1:15){
 # hrs %>% select(HHIDPN, contains("age_v2")) %>% filter(HHIDPN == "32570030")
 # hrs %>% select(HHIDPN, contains("age_v2")) %>% filter(HHIDPN == "32731010")
 
+summary(hrs$rabyear)
+summary(hrs$r3age_v2)
+
 #---- Sex/gender ----
 hrs %<>% 
   mutate("female" = ifelse(ragender == 2, 1, 0))
@@ -502,7 +505,7 @@ hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r3_resp_r2insamp_id)
 
 #---- Select the variables ----
 hrs_selected <- hrs_filtered %>%
-  select(HHIDPN, raddate, hacohort,
+  select(HHIDPN, raddate, hacohort, rabyear,
          contains("inw"),
          contains("iwstat"),
          ends_with("dead"),
