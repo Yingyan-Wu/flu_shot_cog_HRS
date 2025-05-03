@@ -384,7 +384,7 @@ tictoc::toc()
 
 save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_ahead_hrs_outcome.RData"))
 
-imp_pmm_10$loggedEvents # dropped iwstat for a bunch of tv vars, can be ignored
+imp_pmm_10$loggedEvents # dropping iwstat for a bunch of tv vars, can be ignored
 complete(imp_pmm_10) %>%
   apply(., 2, function(x) sum(is.na(x))/length(x)*100)
 plot(imp_pmm_10)
@@ -460,6 +460,16 @@ imp_pmm_stacked %>%
   map_dfr(class) %>% t()
 
 #---- rederived the analytic variables ----
+# Restandardize memory score
+r3memimp_mean_sd_imp <- imp_pmm_stacked %>% filter(wave == 3) %>%
+  group_by(imp) %>%
+  summarise(r3memimp_mean = mean(memimp),
+            r3memimp_sd = sd(memimp))
+
+imp_pmm_stacked %<>%
+  left_join(r3memimp_mean_sd_imp, by = "imp") %>%
+  mutate(memimp_stdz = (memimp - r3memimp_mean)/r3memimp_sd)
+
 imp_pmm_stacked %<>%
   mutate(
     r3wtresp = r3wtresp*1000, # scale it back from per thousand
@@ -492,110 +502,31 @@ imp_pmm_stacked %>%
   apply(., 2, table, useNA = "ifany")
 with(imp_pmm_stacked, table(flusht, wave, useNA = "ifany"))
 
-##---- Check the distribution of imputed memimp ----
-hrs_imp_r3resp_memimp_long <- imp_pmm_stacked %>%
-  filter(imp == 1) %>%
-  mutate(wave = as.numeric(wave))
-hrs_imp_r3resp_memimp_mean <- hrs_imp_r3resp_memimp_long %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp)))) %>%
-filter(wave != 2)
-
-# Only imputed values
-hrs_imponly_r3resp_memimp_long <- imp_pmm_stacked %>%
-  filter(imp == 1, iwstat %in% c(1, 4)) %>%
-  select(HHIDPN, wave, memimp) %>%
-  left_join(hrs_preimp %>% select(HHIDPN, wave, memimp) %>% rename(memimp_pre = memimp), 
-            by = c("HHIDPN", "wave")) %>%
-  mutate(impute_mem = case_when(is.na(memimp_pre) & !is.na(memimp) ~ 1,
-                                !is.na(memimp_pre) ~ 0))
-# Sanity check
-with(hrs_imponly_r3resp_memimp_long %>% filter(wave != 2), table(impute_mem, wave, useNA = "ifany"))
-with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1), summary(memimp))
-with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0), summary(memimp))
-with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1, wave == 3), summary(memimp))
-with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0, wave == 3), summary(memimp))
-with(hrs_imponly_r3resp_memimp_long %>% filter(wave == 3), summary(memimp))
-
-hrs_imp_r3resp_memimp_mean %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  # scale_y_continuous(limits = c(0.45, 1.25)) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time (analytic sample with imputation: imp = 1)",
-       x = "year",
-       y = "Mean memory score") +
-  theme_bw()
-
-##---- Analytic sample not imputed ----
-hrs_memimp_long <- hrs_selected %>%
-  select(HHIDPN, contains("memimp")) %>%
-  pivot_longer(cols = contains("memimp"),
-               names_to = "wave",
-               values_to = "memimp",
-               names_pattern = "r(.*)memimp") %>%
-  mutate(wave = as.numeric(wave))
-hrs_memimp_mean <- hrs_memimp_long %>%
-  group_by(wave) %>%
-  summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
-
-hrs_memimp_mean %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  scale_y_continuous(limits = c(0.45, 1.25)) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time (analytic sample pre imputation)",
-       x = "year",
-       y = "Mean memory score") +
-  theme_bw()
-
-hrs_memimp_preandpost_imp <- hrs_imp_r3resp_memimp_mean %>%
-  mutate(sample = "imputed") %>%
-  bind_rows(hrs_memimp_mean %>%
-              mutate(sample = "pre imputation"))
-
-hrs_memimp_preandpost_imp %>%
-  mutate(year = (wave - 5)*2 + 2000) %>%
-  ggplot(aes(x = year, y = mean_memimp, color = sample)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
-                    ymax = mean_memimp + 1.96*se_memimp),
-                width = 0.2) +
-  scale_y_continuous(limits = c(0.45, 1.25)) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  labs(title = "Mean memory score over time",
-       x = "year",
-       y = "Mean memory score") +
-  theme_bw()
-
-##---- imputed analytic sample by cohort ----
+#---- Check Memory score imputed analytic sample by cohort ----
 hrs_imp_r3resp_memimp_long <- imp_pmm_stacked %>%
   left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN") %>%
   filter(imp == 1) %>%
   mutate(wave = as.numeric(wave))
+# Imputed
 hrs_imp_r3resp_memimp_mean_cohort <- hrs_imp_r3resp_memimp_long %>%
   group_by(wave, hacohort) %>%
   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp)))) %>%
+            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))),
+            mean_memimp_stdz = mean(memimp_stdz, na.rm = TRUE),
+            se_memimp_stdz = sd(memimp_stdz, na.rm = TRUE)/sqrt(sum(!is.na(memimp_stdz)))) %>%
   filter(wave != 2)
+
+# Not imputed
+r3memimp_mean <- mean(hrs_selected$r3memimp, na.rm = T)
+r3memimp_sd <- sd(hrs_selected$r3memimp, na.rm = T)
 hrs_memimp_mean_cohort <- hrs_memimp_long %>%
+  mutate(memimp_stdz = (memimp - r3memimp_mean)/r3memimp_sd) %>%
   left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN") %>%
   group_by(wave, hacohort) %>%
   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
-            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+            se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))),
+            mean_memimp_stdz = mean(memimp_stdz, na.rm = TRUE),
+            se_memimp_stdz = sd(memimp_stdz, na.rm = TRUE)/sqrt(sum(!is.na(memimp_stdz))))
 
 hrs_memimp_preandpost_imp_cohort <- hrs_imp_r3resp_memimp_mean_cohort %>%
   mutate(sample = "imputed") %>%
@@ -621,3 +552,94 @@ hrs_memimp_preandpost_imp_cohort %>%
 
 #---- Save imputed data ----
 saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_ahead_hrs_outcome.RDS"))
+
+
+#---- OLD ----
+# ##---- Check the distribution of imputed memimp ----
+# hrs_imp_r3resp_memimp_long <- imp_pmm_stacked %>%
+#   filter(imp == 1) %>%
+#   mutate(wave = as.numeric(wave))
+# hrs_imp_r3resp_memimp_mean <- hrs_imp_r3resp_memimp_long %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp)))) %>%
+# filter(wave != 2)
+# 
+# # Only imputed values
+# hrs_imponly_r3resp_memimp_long <- imp_pmm_stacked %>%
+#   filter(imp == 1, iwstat %in% c(1, 4)) %>%
+#   select(HHIDPN, wave, memimp, memimp_stdz) %>%
+#   left_join(hrs_preimp %>% select(HHIDPN, wave, memimp) %>% rename(memimp_pre = memimp), 
+#             by = c("HHIDPN", "wave")) %>%
+#   mutate(impute_mem = case_when(is.na(memimp_pre) & !is.na(memimp) ~ 1,
+#                                 !is.na(memimp_pre) ~ 0))
+# # Sanity check
+# with(hrs_imponly_r3resp_memimp_long %>% filter(wave != 2), table(impute_mem, wave, useNA = "ifany"))
+# with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1), summary(memimp))
+# with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0), summary(memimp))
+# with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 1, wave == 3), summary(memimp))
+# with(hrs_imponly_r3resp_memimp_long %>% filter(impute_mem == 0, wave == 3), summary(memimp))
+# with(hrs_imponly_r3resp_memimp_long %>% filter(wave == 3), summary(memimp))
+# 
+# hrs_imp_r3resp_memimp_mean %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   # scale_y_continuous(limits = c(0.45, 1.25)) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time (analytic sample with imputation: imp = 1)",
+#        x = "year",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
+# ##---- Analytic sample not imputed ----
+# hrs_memimp_long <- hrs_selected %>%
+#   select(HHIDPN, contains("memimp")) %>%
+#   pivot_longer(cols = contains("memimp"),
+#                names_to = "wave",
+#                values_to = "memimp",
+#                names_pattern = "r(.*)memimp") %>%
+#   mutate(wave = as.numeric(wave))
+# hrs_memimp_mean <- hrs_memimp_long %>%
+#   group_by(wave) %>%
+#   summarise(mean_memimp = mean(memimp, na.rm = TRUE),
+#             se_memimp = sd(memimp, na.rm = TRUE)/sqrt(sum(!is.na(memimp))))
+# 
+# hrs_memimp_mean %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   scale_y_continuous(limits = c(0.45, 1.25)) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time (analytic sample pre imputation)",
+#        x = "year",
+#        y = "Mean memory score") +
+#   theme_bw()
+# 
+# hrs_memimp_preandpost_imp <- hrs_imp_r3resp_memimp_mean %>%
+#   mutate(sample = "imputed") %>%
+#   bind_rows(hrs_memimp_mean %>%
+#               mutate(sample = "pre imputation"))
+# 
+# hrs_memimp_preandpost_imp %>%
+#   mutate(year = (wave - 5)*2 + 2000) %>%
+#   ggplot(aes(x = year, y = mean_memimp, color = sample)) +
+#   geom_point() +
+#   geom_line() +
+#   geom_errorbar(aes(ymin = mean_memimp - 1.96*se_memimp,
+#                     ymax = mean_memimp + 1.96*se_memimp),
+#                 width = 0.2) +
+#   scale_y_continuous(limits = c(0.45, 1.25)) +
+#   scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+#   labs(title = "Mean memory score over time",
+#        x = "year",
+#        y = "Mean memory score") +
+#   theme_bw()
