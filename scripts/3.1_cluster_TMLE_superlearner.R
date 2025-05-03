@@ -46,7 +46,7 @@ data_folder <- paste0(project_folder, "data/")
 results_folder <- paste0(project_folder, "TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250304.RData"))
+load(paste0(data_folder, "data_for_cluster_20250502.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -80,7 +80,7 @@ wave <- scenario$waves
 i <- which(waves_fu == wave)
 intervention <- scenario$interventions
 num_imp <- scenario$imp
-outcome_var <- paste0("r", wave, "memimp")
+outcome_var <- paste0("r", wave, "memimp_stdz")
 
 print(wave)
 print(i)
@@ -97,7 +97,7 @@ if (intervention == "nc"){
   lmtp_nc <-  function(i) {
     lmtp_tmle(dt_imp_wide_imp1,
               trt = trt_allwaves[[i]],
-              outcome = paste0("r", waves_fu[i], "memimp"),
+              outcome = paste0("r", waves_fu[i], "memimp_stdz"),
               baseline = bl_vars,
               time_vary = L_allwaves[[i]],
               cens = C_allwaves[[i]],
@@ -117,7 +117,7 @@ if (str_detect(intervention, "sus")){
   lmtp_sus <-  function(i, treated = 1) {
     lmtp_tmle(dt_imp_wide_imp1,
               trt = trt_allwaves[[i]],
-              outcome = paste0("r", waves_fu[i], "memimp"),
+              outcome = paste0("r", waves_fu[i], "memimp_stdz"),
               baseline = bl_vars,
               time_vary = L_allwaves[[i]],
               shift = case_when(treated == 1 ~ list(static_binary_on),# Turn all treatment nodes on
