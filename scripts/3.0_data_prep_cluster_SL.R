@@ -33,7 +33,7 @@ tv_vars <- c("age_v2", "mstat_2cat", "income_pp",
              # # Survey weights
              # "wtresp",
              # Outcome (at previous waves)
-             "memimp")
+             "memimp_stdz")
 
 hrs_imp_r3resp_wide <- hrs_imp %>%
   select(HHIDPN, wave, imp, all_of(c(bl_vars, tv_vars)), -r3age_v2) %>%
@@ -51,13 +51,16 @@ hrs_imp_r3resp_wide <- hrs_imp %>%
 # Descriptives:
 colnames(hrs_imp_r3resp_wide)
 for (w in 4:15){
-  print(with(hrs_imp_r3resp_wide, table(!is.na(get(paste0("r", w, "memimp"))), 
+  print(with(hrs_imp_r3resp_wide, table(!is.na(get(paste0("r", w, "memimp_stdz"))), 
                                         get(paste0("r", w, "inw_imp")), 
                                         useNA = "ifany")))
 }
 hrs_imp_r3resp_wide %>%
   select(contains("memimp")) %>%
   apply(., 2, summary)
+hrs_imp_r3resp_wide %>%
+  select(contains("memimp")) %>%
+  apply(., 2, sd, na.rm = T)
 hrs_imp_r3resp_wide %>%
   select(contains("flusht")) %>%
   apply(., 2, summary)
@@ -87,7 +90,7 @@ hrs_imp_r3resp_wide %>%
 ##---- Covariates ----
 tv_cov_memimp <- tv_vars[!tv_vars%in% c("flusht", # exposure
                                         "fu_year", "wtresp",
-                                        # "memimp",
+                                        # "memimp_stdz",
                                         "inw", "iwstat", "dead", "inw_imp")]
 
 # Time varying covariates list for each wave (alternative waves from 2, 3:15, 8 waves in total)
@@ -100,7 +103,7 @@ L_allwaves <- lapply(waves, function(w) {
   previous_waves <- waves[waves < w]
   lapply(previous_waves, function(w) 
     case_when(w == 2 ~ 
-                list(paste0("r", w, tv_cov_memimp[tv_cov_memimp != "memimp"])),
+                list(paste0("r", w, tv_cov_memimp[tv_cov_memimp != "memimp_stdz"])),
               TRUE ~ list(paste0("r", w, tv_cov_memimp)))[[1]])
 })
 L_allwaves[[1]] <- NULL
@@ -149,4 +152,4 @@ hrs_imp_r3resp_wide %>% filter(if_all(contains("flusht"), ~ .x == 0)) %>%
 
 #---- Save the elements for the Super Learner ----
 save(hrs_imp_r3resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_20250304.RData"))
+     file = here::here("data", "analysis_data", "data_for_cluster_20250502.RData"))
