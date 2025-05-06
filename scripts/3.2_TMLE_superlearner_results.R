@@ -163,7 +163,7 @@ results_contrasts <- raw_results_contrasts %>%
 # hist(y_w3_1sus_1$weights)
 # hist(y_w3_1sus_3$weights)
 
-load(here::here("data", "analysis_data", "data_for_cluster_20250304.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_20250502.RData"))
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r3resp_wide %>% filter(imp == 1) %>%
@@ -282,7 +282,7 @@ results_pe_se_rubin %>%
   geom_errorbar(aes(ymin = ll_rubin, ymax = ul_rubin),
                 position = position_dodge((width = 1)),
                 width = 0.8) +
-  scale_y_continuous(breaks = seq(-0.70, 1, by = 0.2)) +
+  scale_y_continuous(breaks = seq(-3, 0, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 24, by = 2)) +
   # scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
   scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
