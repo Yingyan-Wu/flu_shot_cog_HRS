@@ -13,7 +13,7 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Load data ----
-load(here::here("data", "analysis_data", "data_for_cluster_20250304.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_20250502.RData"))
 load(here::here("data", "model_results", "lmtp_results_SL_po.RData"))
 waves_fu = 3:15
 
@@ -68,6 +68,9 @@ results_po %<>%
 # results_po %>%
 #   select(contains("_mci"), type) %>%
 #   apply(., 2, function(x) table(x, useNA = "ifany"))/nrow(results_po)
+
+# Save the results
+# saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks.RDS"))
 
 RD_RR_risk_mci <- results_po %>%
   select(type, imp, contains("_mci")) %>%
