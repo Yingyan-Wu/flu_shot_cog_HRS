@@ -461,16 +461,6 @@ imp_pmm_stacked %>%
   map_dfr(class) %>% t()
 
 #---- rederived the analytic variables ----
-# Restandardize memory score
-r3memimp_mean_sd_imp <- imp_pmm_stacked %>% filter(wave == 3) %>%
-  group_by(imp) %>%
-  summarise(r3memimp_mean = mean(memimp),
-            r3memimp_sd = sd(memimp))
-
-imp_pmm_stacked %<>%
-  left_join(r3memimp_mean_sd_imp, by = "imp") %>%
-  mutate(memimp_stdz = (memimp - r3memimp_mean)/r3memimp_sd)
-
 imp_pmm_stacked %<>%
   mutate(
     r3wtresp = r3wtresp*1000, # scale it back from per thousand
@@ -496,6 +486,17 @@ imp_pmm_stacked %<>%
                             TRUE ~ memimp),
          flusht = case_when(wave %% 2 == 0 ~ NA_real_,
                             TRUE ~ flusht))
+
+# Restandardize memory score
+r3memimp_mean_sd_imp <- imp_pmm_stacked %>% filter(wave == 3) %>%
+  group_by(imp) %>%
+  summarise(r3memimp_mean = mean(memimp),
+            r3memimp_sd = sd(memimp))
+
+imp_pmm_stacked %<>%
+  left_join(r3memimp_mean_sd_imp, by = "imp") %>%
+  mutate(memimp_stdz = (memimp - r3memimp_mean)/r3memimp_sd)
+
 # Sanity check
 imp_pmm_stacked %>%
   filter(wave == 2) %>%
