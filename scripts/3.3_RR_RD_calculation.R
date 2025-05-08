@@ -70,7 +70,7 @@ results_po %<>%
 #   apply(., 2, function(x) table(x, useNA = "ifany"))/nrow(results_po)
 
 # Save the results
-# saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks.RDS"))
+saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks.RDS"))
 
 RD_RR_risk_mci <- results_po %>%
   select(type, imp, contains("_mci")) %>%
