@@ -1,6 +1,7 @@
-# Obtain estimates from the cluster results
+# Obtain estimates from the cluster results (Sens HRS only)
 # local script
 # Yingyan Wu
+# Same calculation and process as in Script 3.2 (using HRS only Sens dataset and cluster results)
 
 #---- Package loading + option specifications ----
 rm(list = ls())

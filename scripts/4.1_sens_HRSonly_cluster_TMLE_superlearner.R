@@ -1,6 +1,7 @@
-# TMLE with super learner
+# TMLE with super learner (Sens HRS only)
 # running on hoffman cluster
 # Yingyan Wu
+# Same analysis as in Script 3.1 (with different dataset, and drop 0sus intervention)
 
 #---- Argument ----
 # Read in the arguments listed in the:
