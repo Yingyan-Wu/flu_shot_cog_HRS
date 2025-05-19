@@ -51,6 +51,10 @@ wtd_mci_threshold <-  results_po_70_74 %>%
     mci_threshold_ul = wtd.quantile(po_w3, weights_w3, probs = mci_p_ul, normwt = T)
   )
 
+# # Save the threshold
+# save(wtd_mci_threshold, 
+#      file = here::here("data", "model_results", "wtd_mci_threshold_imp_hrs_ahead.RData"))
+
 results_po %<>%
   left_join(wtd_mci_threshold, by = "imp") %>%
   mutate(
