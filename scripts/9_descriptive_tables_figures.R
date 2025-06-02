@@ -9,7 +9,7 @@ if (!require("pacman")){
   install.packages("pacman", repos='http://cran.us.r-project.org')
 }
 p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled", 
-       "gtsummary", "survey")
+       "gtsummary", "survey", "ggalluvial")
 options(scipen = 999)
 
 #---- Load the data ----
@@ -60,12 +60,12 @@ hrs_imp_r3resp_wide <- hrs_imp_r3resp %>%
 with(hrs_imp_r3resp_wide, summary(max_fu_time))
 with(hrs_imp_r3resp_wide, summary(num_flusht))
 with(hrs_imp_r3resp_wide, table(num_flusht, flusht_taker, useNA = "ifany"))/10
-hrs_imp_r3resp_wide %>% group_by(flusht_cat) %>% summarize(
+hrs_imp_r3resp_wide %>% group_by(flusht_cat) %>% dplyr::summarize(
   n = n(),
   mean_age = mean(r3age_v2, na.rm = T))
 with(hrs_imp_r3resp %>%
-  filter(imp == 1, wave == 3),
-  summary(r3age_v2))
+       filter(imp == 1, wave == 3),
+     summary(r3age_v2))
 
 #---- Table 1. imputed description ----
 ##---- Labelled data for Table 1 ----
@@ -135,6 +135,7 @@ temp_cat_weighted %>% as_flex_table()
 
 unwtd_n <- temp_cat_weighted$table_styling$header$modify_stat_n_unweighted[6:8]
 wtd_n <- temp_cat_weighted$table_styling$header$modify_stat_n[6:8]
+
 table1_headers <- c(
   "Characteristic", 
   paste0("Overall \nn=", prettyNum(round(unwtd_n[1]/n_imp), big.mark = ","),
@@ -241,10 +242,73 @@ writexl::write_xlsx(table1_weighted,
                     here::here("output", "tables", "table1_imp_weighted_stratified.xlsx"))
 
 ##---- Flu shot descriptive table ----
+# Always taker, some flu shot, no flu shot
 table_flusht_weighted <- rbind(table1_cat_weighted[21:24, ], # flu shot
                                table1_cont_weighted[5, ]) # flu shot numbers
 writexl::write_xlsx(table_flusht_weighted, 
                     here::here("output", "tables", "table_flusht.xlsx"))
+
+#---- Flu shot per wave ----
+# Flu shot acceptance prop at each eligible time (give a sense of natural course?)
+# All intervened proportion at each eligible time
+
+# Current flu shot proportion per wave
+flusht_per_wave <- hrs_imp_r3resp %>%
+  filter(wave %in% seq(3, 15, by = 2)) %>%
+  group_by(wave) %>%
+  dplyr::summarize(
+    n_sample_size = sum(inw_imp)/10,
+    n_flusht = round(sum(flusht, na.rm = T)/10),
+    prop = mean(flusht, na.rm = T) * 100,
+    wtd.prop = wtd.mean(flusht, r3wtresp, na.rm = T) * 100) %>%
+  mutate(`Flu shot reported at that wave` = 
+           paste0(n_flusht, " (", sprintf(wtd.prop, fmt = '%#.1f'), ")"))
+
+# # Sanity check
+# with(hrs_imp_r3resp, table(wave, flusht, useNA = "ifany"))/10
+# with(hrs_imp_r3resp, table(wave, inw_imp, useNA = "ifany"))/10
+
+# Sustained flu shot per wave
+flusht_sus_long <- hrs_imp_r3resp %>%
+  filter(wave %in% seq(3, 15, by = 2), inw_imp == 1) %>%
+  arrange(imp, HHIDPN, wave) %>%
+  group_by(imp, HHIDPN) %>%
+  mutate(flu_cumsum = cumsum(ifelse(flusht == 1, 1, 0)),
+         flu_count = row_number(), 
+         sustained = ifelse(flu_cumsum == flu_count, 1, 0)) %>%
+  ungroup()
+
+with(flusht_sus_long, table(wave, flu_cumsum, useNA = "ifany"))
+
+
+flusht_sus_per_wave <- flusht_sus_long %>%
+  filter(!is.na(flusht)) %>%
+  group_by(wave) %>%
+  summarise(n_sus_flusht = round(sum(sustained, na.rm = T)/10),
+            n_sample_size = sum(inw_imp)/10,
+            wtd.prop = wtd.mean(sustained, r3wtresp, na.rm = T) * 100,
+            prop = mean(sustained, na.rm = T) * 100) %>%
+  mutate(`Sustained flu shot reported at that wave` = 
+           paste0(n_sus_flusht, " (", sprintf(wtd.prop, fmt = '%#.1f'), ")"))
+
+# # Sanity check
+# hrs_imp_r3resp_wide %>%
+#   filter(r3flusht == 1, r5flusht == 1) %>%
+#   with(., table(r5inw_imp, useNA = "ifany"))/10
+# hrs_imp_r3resp_wide %>%
+#   filter(r3flusht == 1, r5flusht == 1, r7flusht == 1, r9flusht == 1, 
+#          r11flusht == 1, r13flusht == 1, r15flusht == 1) %>%
+#   with(., table(r15inw_imp, useNA = "ifany"))/10
+
+
+flusht_perwave_sus_tbl <- flusht_per_wave %>% 
+  select(wave, n_sample_size, starts_with("Flu shot")) %>%
+  left_join(flusht_sus_per_wave %>% select(-n_sus_flusht, -prop, -wtd.prop), 
+            by = join_by(wave, n_sample_size))
+
+writexl::write_xlsx(flusht_perwave_sus_tbl,
+                    here::here("output", "tables", "table_flusht_per_wave.xlsx"))
+
 
 
 #---- Fig 1. flu shot descriptive ----
@@ -277,15 +341,30 @@ flusht_fortraj %>%
   scale_y_continuous(name = "Count",
                      breaks = seq(0, 20000, by = 2500)) +
   theme_bw() +
-  theme(legend.position = "None",
-        text = element_text(size = 12, color = "black"),
-        strip.text.x = element_text(size = 12, color = "black"),
-        strip.text.y = element_text(size = 12, color = "black"),
-        axis.text.x = element_text(size = 12, color = "black"),
-        axis.text.y = element_text(size = 12, color = "black"),
-        legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "fig_flusht_traj.png"), 
-       device = "png", width = 9, height = 7, units = "in", dpi = 300)
+  # theme(legend.position = "None",
+  #       text = element_text(size = 12, color = "black"),
+  #       strip.text.x = element_text(size = 12, color = "black"),
+  #       strip.text.y = element_text(size = 12, color = "black"),
+  #       axis.text.x = element_text(size = 12, color = "black"),
+  #       axis.text.y = element_text(size = 12, color = "black"),
+  #       legend.text = element_text(size = 12, color = "black"))
+  #   # SER version
+  #   theme(legend.position = "None",
+  #         text = element_text(size = 14, color = "black"),
+  #         strip.text.x = element_text(size = 14, color = "black"),
+  #         strip.text.y = element_text(size = 14, color = "black"),
+  #         axis.text.x = element_text(size = 14, color = "black"),
+  #         axis.text.y = element_text(size = 14, color = "black"),
+  #         legend.text = element_text(size = 14, color = "black"),
+  #         strip.text = element_text(size = 14, color = "black"))
+  # ggsave(here::here("output", "figures", "fig_flusht_traj_SER.png"),
+  #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
+  ggsave(here::here("output", "figures", "fig_flusht_traj.png"), 
+         device = "png", width = 9, height = 7, units = "in", dpi = 300)
+
+
+#---- Flu shot per wave ----
+
 
 #---- Table S1 ----
 # Missing summary
