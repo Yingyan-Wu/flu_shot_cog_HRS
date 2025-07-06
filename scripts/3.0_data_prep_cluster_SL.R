@@ -29,7 +29,7 @@ tv_vars <- c("age_v2", "mstat_2cat", "income_pp",
              # exposure
              "flusht", 
              # Follow up status #"inw", "dead",
-             "iwstat", "inw_imp",
+             "iwstat", "inw_imp", "dead",
              # # Survey weights
              # "wtresp",
              # Outcome (at previous waves)

@@ -11,7 +11,7 @@ if (!require("pacman")){
 p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
        "splines", "lmtp", "glue")
 
-options(sci = 999)
+options(sci = 99999)
 
 #---- Read in the lmtp objects ----
 total_scenarios <- 1:270
@@ -164,6 +164,7 @@ results_contrasts <- raw_results_contrasts %>%
 # hist(y_w3_1sus_3$weights)
 
 load(here::here("data", "analysis_data", "data_for_cluster_20250502.RData"))
+num_imp = 10
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r3resp_wide %>% filter(imp == 1) %>%
@@ -239,6 +240,7 @@ save(results_po,
 #---- Rubin's rule ----
 ##---- PE CI ----
 load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
+num_imp <- 10
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
   reframe(
@@ -271,6 +273,8 @@ results_contrasts_rubin <- results_contrasts %>%
 
 #---- Table and plots ----
 ##---- Trajectory plot ----
+results_pe_se_rubin <- 
+  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot.RDS"))
 results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
@@ -282,6 +286,13 @@ results_pe_se_rubin %>%
   geom_errorbar(aes(ymin = ll_rubin, ymax = ul_rubin),
                 position = position_dodge((width = 1)),
                 width = 0.8) +
+  # # SER version
+  # geom_point(size = 2, position = position_dodge((width = 1))) +
+  # geom_line(size = 1, position = position_dodge((width = 1))) +
+  # geom_errorbar(aes(ymin = ll_rubin, ymax = ul_rubin),
+  #               size = 1,
+  #               position = position_dodge((width = 1)),
+  #               width = 1) +
   scale_y_continuous(breaks = seq(-3, 0, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 24, by = 2)) +
   # scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
@@ -294,20 +305,41 @@ results_pe_se_rubin %>%
     y = "Memory z-score") +
   theme_bw() +
   theme(legend.position = "bottom",
-        text = element_text(size = 12, color = "black"), 
+        text = element_text(size = 12, color = "black"),
         strip.text.x = element_text(size = 12, color = "black"),
         strip.text.y = element_text(size = 12, color = "black"),
-        axis.text.x = element_text(size = 12, color = "black"), 
+        axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
+# # SER version
+# theme(legend.position = "bottom",
+#       text = element_text(size = 16, color = "black"),
+#       strip.text.x = element_text(size = 16, color = "black"),
+#       strip.text.y = element_text(size = 16, color = "black"),
+#       axis.text.x = element_text(size = 16, color = "black"),
+#       axis.text.y = element_text(size = 16, color = "black"),
+#       legend.text = element_text(size = 16, color = "black"),
+#       strip.text = element_text(size = 16, color = "black"))
+# ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute_SER.png"),
+#        device = "png", width = 9, height = 7, units = "in", dpi = 600)
 ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
 results_pe_se_year_table <- results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
+  bind_rows(results_contrasts_rubin %>% 
+              filter(intervention_index == "Continuous flu shot",
+                     intervention_ref == "Natural course",
+                     wave_index == wave_ref) %>%
+              mutate(type = "Mean difference") %>%
+              select(survey_year = survey_year_index, 
+                     fu_year = fu_year_index,
+                     type,
+                     point_est_rubin, ll_rubin, ul_rubin)) %>%
   mutate(
-    type = factor(type, levels = c("Natural course", "Continuous flu shot")),
+    type = factor(type, levels = 
+                    c("Natural course", "Continuous flu shot", "Mean difference")),
     across(point_est_rubin:ul_rubin, 
            ~sprintf(., fmt = '%#.2f')),
     pe_ci = paste0(point_est_rubin, " (", ll_rubin, ", ", ul_rubin, ")")) %>%
@@ -354,3 +386,74 @@ results_contrasts_year_table %>%
     here::here("output", "tables", 
                "lmtp_contrasts_SL_ahead_hrs_memimp_impute.xlsx"))
 
+#---- Comparing observed memory trajectories ----
+with(results_po, table(type, imp, useNA = "ifany"))
+
+nc_po_long <- results_po %>%
+  filter(type == "nc") %>%
+  select(HHIDPN, imp, starts_with("po")) %>%
+  pivot_longer(cols = -c(HHIDPN, imp), names_to = "wave", 
+               values_to = "po",
+               names_pattern = "po_w(.*)") %>%
+  mutate(wave = as.numeric(wave))
+
+hrs_imp_r3resp_memimp_long <- hrs_imp_r3resp_wide %>%
+  select(HHIDPN, imp, r3wtresp, contains("memimp_stdz")) %>%
+  pivot_longer(cols = -c(HHIDPN, imp, r3wtresp), names_to = "wave", 
+               values_to = "memimp_stdz",
+               names_pattern = "r(.*)memimp_stdz") %>%
+  mutate(wave = as.numeric(wave)) %>%
+  na.omit() %>%
+  left_join(nc_po_long, by = c("HHIDPN", "imp", "wave")) %>%
+  mutate(memimp_po_diff = po - memimp_stdz)
+
+with(hrs_imp_r3resp_memimp_long, table(wave, imp, useNA = "ifany"))
+# Size equals across imputations at different waves
+
+nc_observed_comp_tib <- hrs_imp_r3resp_memimp_long %>%
+  group_by(wave) %>%
+  dplyr::summarize(mean_memimp_stdz = wtd.mean(memimp_stdz, weights = r3wtresp,
+                                               na.rm = TRUE),
+                   mean_po = mean(po, na.rm = T),
+                   mean_diff = mean(memimp_po_diff, na.rm = T))
+
+
+nc_observed_comp_tib %>%
+  pivot_longer(cols = mean_memimp_stdz:mean_po,
+               names_to = "type") %>%
+  ggplot(aes(x = wave, y = value, color = type)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(3, 15, by = 1)) +
+  theme_bw() +
+  scale_y_continuous(limits = c(-2, 0), breaks = seq(-2, 0, by = 0.2))
+
+nc_observed_comp_tib %>%
+  ggplot(aes(x = wave, y = mean_diff)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(3, 15, by = 1)) +
+  theme_bw() +
+  scale_y_continuous(limits = c(-1, 0), breaks = seq(-2, 0, by = 0.2))
+
+# NC no IPCW
+load(here::here("data", "model_results", "lmtp_nc_noipcw_results.RData"))
+nc_noipcw_rubin <- nc_results %>%
+  group_by(wave) %>%
+  dplyr::summarize(mean_po_noipcw = mean(point_est))
+
+nc_observed_comp_tib %<>%
+  left_join(nc_noipcw_rubin, by = "wave")
+# No IPCW NC PO is the same as observed mean!!!
+
+nc_observed_comp_tib %>%
+  select(-mean_diff) %>%
+  pivot_longer(cols = mean_memimp_stdz:mean_po_noipcw,
+               names_to = "type") %>%
+  ggplot(aes(x = wave, y = value, color = type)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(3, 15, by = 1)) +
+  theme_bw() +
+  scale_y_continuous(limits = c(-2, 0), breaks = seq(-2, 0, by = 0.2))
