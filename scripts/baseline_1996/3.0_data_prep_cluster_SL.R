@@ -150,52 +150,43 @@ hrs_imp_r3resp_wide %>% filter(if_all(contains("flusht"), ~ .x == 1)) %>%
 hrs_imp_r3resp_wide %>% filter(if_all(contains("flusht"), ~ .x == 0)) %>%
   with(., table(imp, useNA = "ifany"))
 
-#---- Data for sensitivity analysis ---
+#---- Sens: HRS only ---
 load(here::here("data", "analysis_data", "hrs_selected.RData"))
 
-# Sanity check
-with(hrs_imp, table(wave, imp, useNA = "ifany"))
-hrs_imp %<>%
-  left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN")
-with(hrs_imp, table(hacohort, imp, useNA = "ifany"))
-hrs_imp_hrsonly <- hrs_imp %>% filter(hacohort == 3) # 0 ahead/hrs, 1 ahead, 3 hrs
-
-
-hrs_imp_r3resp_wide_hrsonly <- hrs_imp_hrsonly %>%
-  select(HHIDPN, wave, imp, all_of(c(bl_vars, tv_vars)), -r3age_v2) %>%
-  mutate(
-    # for those who died this wave, set the flusht value to be 0 for this wave
-    # These people were not used anyway as the outcome at this wave is still missing for these people
-    # this is just for the lmtp_tmle function to be able to run
-    flusht = case_when(iwstat %in% c(5, 6, 7, 9) ~ 0,
-                       TRUE ~ flusht)) %>%
-  pivot_wider(names_from = "wave", 
-              values_from = c(all_of(tv_vars)),
-              names_glue = "r{wave}{.value}") %>%
-  select(-paste0("r", seq(2, 14, by = 2), "flusht"), -contains("r2memimp"))
-
-# For Flusht at waves 4, 6, 8, ..., 14, make them the same as the flusht in the previous wave
-# e.g. Y4|do(X3), do(X4) = Y4|do(X3), and thus, the value of X4 does not make a difference
-flusht_waves <- seq(3, 15, by = 2)
-for (w in flusht_waves[flusht_waves != 15]){
-  hrs_imp_r3resp_wide_hrsonly %<>%
-    mutate(!!paste0("r", w + 1, "flusht") := !!sym(paste0("r", w, "flusht")))
-}
+hrs_imp_r3resp_wide_hrsonly <- hrs_imp_r3resp_wide %>% 
+  left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN") %>% 
+  filter(hacohort == 3) %>%  # 0 ahead/hrs, 1 ahead, 3 hrs
+  select(-hacohort)
 # # Sanity check
 # hrs_imp_r3resp_wide_hrsonly %>%
 #   select(paste0("r", 3:15, "flusht")) %>%
 #   apply(., 2, table, useNA = "ifany")
 
+#---- Sens2: restrict baseline age ----
+hrs_imp_r3resp_wide_ager3le80 <- hrs_imp_r3resp_wide %>%
+  filter(r3age_v2 <= 80)
 
+# Sanity check
+with(hrs_imp_r3resp_wide_ager3le80, table(imp, useNA = "ifany"))
 
 #---- Save the elements for the Super Learner ----
 save(hrs_imp_r3resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_20250502.RData"))
 
-# Save sensitivity analysis data with non-specific dataset name
+# Save sens HRS only data with non-specific dataset name
 hrs_imp_r3resp_wide <- hrs_imp_r3resp_wide_hrsonly
 save(hrs_imp_r3resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_hrsonly_20250502.RData"))
 # Descriptives
-sum(hrs_imp_r3resp_wide$r3wtresp)
-mean(hrs_imp_r3resp_wide$r3age_v2)
+sum(hrs_imp_r3resp_wide$r3wtresp)/10
+mean(hrs_imp_r3resp_wide$r3age_v2) # 66.57
+
+
+# Save sens r3age <= 80 data with non-specific dataset name
+hrs_imp_r3resp_wide <- hrs_imp_r3resp_wide_ager3le80
+save(hrs_imp_r3resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
+     file = here::here("data", "analysis_data", "data_for_cluster_ager3le80_20250502.RData"))
+# Descriptives
+sum(hrs_imp_r3resp_wide$r3wtresp)/10
+mean(hrs_imp_r3resp_wide$r3age_v2) # 63.47
+

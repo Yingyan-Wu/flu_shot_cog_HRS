@@ -67,6 +67,30 @@ with(hrs_imp_r3resp %>%
        filter(imp == 1, wave == 3),
      summary(r3age_v2))
 
+#---- Baseline age per cohort ----
+load(here::here("data", "analysis_data", "hrs_selected.RData"))
+hrs_imp_r3resp_wide_imp1 <- hrs_imp_r3resp_wide %>% 
+  filter(imp == 1) %>%
+  left_join(hrs_selected %>% select(HHIDPN, hacohort), by = "HHIDPN")
+
+
+hrs_imp_r3resp_wide_imp1 %>%
+  mutate(hacohort = case_when(hacohort == 0 ~ "HRS/AHEAD overlap",
+                              hacohort == 1 ~ "AHEAD",
+                              hacohort == 3 ~ "HRS") %>%
+           factor(., levels = c("HRS", "HRS/AHEAD overlap", "AHEAD"))) %>%
+  ggplot() +
+  geom_histogram(aes(x = r3age_v2, fill = hacohort), position = "identity", 
+                 alpha = 0.5, 
+                 binwidth = 1) +
+  labs(x = "Baseline age in years", y = "Count", fill = "Sample cohort") +
+  theme_bw()
+
+ggsave(here::here("output", "figures", "baseline_age_per_cohort.png"),
+       width = 8, height = 5, dpi = 300)
+
+
+
 #---- Table 1. imputed description ----
 ##---- Labelled data for Table 1 ----
 labelled_data <- hrs_imp_r3resp_wide %>%
@@ -260,7 +284,7 @@ flusht_per_wave <- hrs_imp_r3resp %>%
     n_sample_size = sum(inw_imp)/10,
     n_flusht = round(sum(flusht, na.rm = T)/10),
     prop = mean(flusht, na.rm = T) * 100,
-    wtd.prop = wtd.mean(flusht, r3wtresp, na.rm = T) * 100) %>%
+    wtd.prop = Hmisc::wtd.mean(flusht, r3wtresp, na.rm = T) * 100) %>%
   mutate(`Flu shot reported at that wave` = 
            paste0(n_flusht, " (", sprintf(wtd.prop, fmt = '%#.1f'), ")"))
 
@@ -286,7 +310,7 @@ flusht_sus_per_wave <- flusht_sus_long %>%
   group_by(wave) %>%
   summarise(n_sus_flusht = round(sum(sustained, na.rm = T)/10),
             n_sample_size = sum(inw_imp)/10,
-            wtd.prop = wtd.mean(sustained, r3wtresp, na.rm = T) * 100,
+            wtd.prop = Hmisc::wtd.mean(sustained, r3wtresp, na.rm = T) * 100,
             prop = mean(sustained, na.rm = T) * 100) %>%
   mutate(`Sustained flu shot reported at that wave` = 
            paste0(n_sus_flusht, " (", sprintf(wtd.prop, fmt = '%#.1f'), ")"))
@@ -313,13 +337,24 @@ writexl::write_xlsx(flusht_perwave_sus_tbl,
 
 #---- Fig 1. flu shot descriptive ----
 #---- Trajectory plot ----
-flusht_fortraj <- hrs_imp_r3resp_wide %>%
+with(hrs_imp_r3resp %>% filter(!wave %in% seq(2, 14, by = 2)), 
+     table(flusht, iwstat, useNA = "ifany"))
+
+flusht_fortraj <- hrs_imp_r3resp %>%
+  select(HHIDPN, imp, wave, flusht) %>%
+  pivot_wider(names_from = "wave", 
+              values_from = "flusht",
+              names_glue = "r{wave}flusht") %>%
   select(paste0("r", seq(3, 15, by = 2), "flusht")) %>%
   group_by(across(all_of(paste0("r", seq(3, 15, by = 2), "flusht")))) %>%
   summarize(count = round(n()/n_imp)) %>% ungroup() %>%
   mutate(across(paste0("r", seq(3, 15, by = 2), "flusht"), 
-                ~factor(., levels = c(0, 1), 
-                        labels = c("No flu shot", "Flu shot"))))
+                ~case_when(. == 0 ~ "0",
+                           . == 1 ~ "1",
+                           is.na(.) ~ "NA"))) %>%
+  mutate(across(paste0("r", seq(3, 15, by = 2), "flusht"), 
+                ~factor(., levels = c("0", "1", "NA"), 
+                        labels = c("No flu shot", "Flu shot", "Drop out/death"))))
 
 flusht_fortraj %>%
   ggplot(aes(y = count,
@@ -341,34 +376,74 @@ flusht_fortraj %>%
   scale_y_continuous(name = "Count",
                      breaks = seq(0, 20000, by = 2500)) +
   theme_bw() +
-  # theme(legend.position = "None",
-  #       text = element_text(size = 12, color = "black"),
-  #       strip.text.x = element_text(size = 12, color = "black"),
-  #       strip.text.y = element_text(size = 12, color = "black"),
-  #       axis.text.x = element_text(size = 12, color = "black"),
-  #       axis.text.y = element_text(size = 12, color = "black"),
-  #       legend.text = element_text(size = 12, color = "black"))
-  #   # SER version
-  #   theme(legend.position = "None",
-  #         text = element_text(size = 14, color = "black"),
-  #         strip.text.x = element_text(size = 14, color = "black"),
-  #         strip.text.y = element_text(size = 14, color = "black"),
-  #         axis.text.x = element_text(size = 14, color = "black"),
-  #         axis.text.y = element_text(size = 14, color = "black"),
-  #         legend.text = element_text(size = 14, color = "black"),
-  #         strip.text = element_text(size = 14, color = "black"))
-  # ggsave(here::here("output", "figures", "fig_flusht_traj_SER.png"),
-  #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
-  ggsave(here::here("output", "figures", "fig_flusht_traj.png"), 
-         device = "png", width = 9, height = 7, units = "in", dpi = 300)
+  theme(legend.position = "None",
+        text = element_text(size = 12, color = "black"),
+        strip.text.x = element_text(size = 12, color = "black"),
+        strip.text.y = element_text(size = 12, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        legend.text = element_text(size = 12, color = "black"))
+#   # SER version
+#   theme(legend.position = "None",
+#         text = element_text(size = 14, color = "black"),
+#         strip.text.x = element_text(size = 14, color = "black"),
+#         strip.text.y = element_text(size = 14, color = "black"),
+#         axis.text.x = element_text(size = 14, color = "black"),
+#         axis.text.y = element_text(size = 14, color = "black"),
+#         legend.text = element_text(size = 14, color = "black"),
+#         strip.text = element_text(size = 14, color = "black"))
+# ggsave(here::here("output", "figures", "fig_flusht_traj_SER.png"),
+#        device = "png", width = 9, height = 7, units = "in", dpi = 600)
+ggsave(here::here("output", "figures", "fig_flusht_traj.png"), 
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
-
-#---- Flu shot per wave ----
-
-
-#---- Table S1 ----
+#---- Table S1: missingness ----
 # Missing summary
 missing_summary <- readxl::read_xlsx(here::here("output", "tables", 
                                                 "missing_summary.xlsx"))
 
+#---- Table S: death/ loss to follow up over time ----
+# Sanity check on iwstat not change for each imp
+with(hrs_imp_r3resp, table(imp, iwstat, useNA = "ifany"))
 
+# Death and loss to follow up over time
+hrs_imp_r3resp %>%
+  filter(imp == 1) %>%
+  select(HHIDPN, wave, iwstat) %>%
+  mutate(iwstat = case_when(iwstat %in% c(1, 4) ~ "In Sample",
+                            iwstat %in% c(5, 6) ~ "Death",
+                            iwstat == 7 ~ "Formally drop out from the sample")) %>%
+  ggplot() +
+  geom_bar(aes(x = wave, fill = iwstat), position = "fill") +
+  scale_fill_manual(name = "Follow up status", 
+                    values = c("#94CEF0", "#3271AE", "#B0B0B0")) +
+  geom_text(stat = "count", aes(label = after_stat(count)), 
+            position = position_fill(vjust = 0.5), size = 3)
+  
+  
+pivot_wider(names_from = "wave", 
+              values_from = "iwstat",
+              names_glue = "r{wave}iwstat") %>%
+  select(-HHIDPN, -r2iwstat) %>%
+  tbl_summary() %>%
+  bold_labels()
+
+
+
+cat_imp_svy <- labelled_data %>%
+  select(female, raceeth, r3mstat_2cat, r3insurance_2cat, r3smoken, 
+         r3flone, r3hibpe, r3diabe, r3cancre, r3stroke, r3hearte, r3lunge,
+         r3adl_2cat, r3iadl_2cat, flusht_cat, flusht_taker,
+         # baseline weights
+         r3wtresp) %>%
+  survey::svydesign(~ 1, data = ., weights = ~r3wtresp)
+
+temp_cat_weighted <- tbl_svysummary(
+  data = cat_imp_svy,
+  statistic = list(all_categorical() ~ c("{n_unweighted} {p}")), # For latter splitting
+  digits = all_categorical() ~ 1,
+  by = "flusht_cat") %>%
+  add_overall() %>%
+  bold_labels()
+
+temp_cat_weighted %>% as_flex_table()

@@ -21,6 +21,7 @@ number_waves <- 1:15
 rand_variables <- c("hhidpn", "ragender", "raracem", "rahispan", "rabmonth", 
                     "rabyear", "rabdate", "radmonth", "radyear", "raddate",
                     "radage_y", "hacohort", # the cohort in which the household was originally sampled. 
+                    "racohbyr", # cohort based on actual birth year 
                     # Response indicator
                     paste0("inw", number_waves),
                     paste0("r", number_waves, "iwbeg"),# Interview begin dates
@@ -46,7 +47,15 @@ rand_variables <- c("hhidpn", "ragender", "raracem", "rahispan", "rabmonth",
                     paste0("r", 3:15, "drinkd"),
                     paste0("r", 3:15, "drinkn"),
                     paste0("r", 2:15, "cesd"),
-                    paste0("r", number_waves, "shlt"),
+                    paste0("r", number_waves, "shlt"), # self rated health
+                    # doctor visits
+                    paste0("r", number_waves, "doctor"),
+                    paste0("r", number_waves, "doctim"),
+                    # Physical activities
+                    paste0("r", 1:6, "vigact"), # vigorous physical activities 3+/week
+                    paste0("r", 7:15, "vgactx"), # Freq vigorous phys activities
+                    
+                    # Daily functioning
                     paste0("r", 2:15, "adl6a"),
                     paste0("r", 2:15, "iadl5a"),
                     # Household income
@@ -150,7 +159,7 @@ hrs %<>%
                 ~as.Date(.x, origin = "1960-01-01")))
 
 # Exact age at waves (to calculate exact follow up time)
-for (w in 1:15){
+for (w in number_waves){
   hrs%<>%
     mutate(!!paste0("r", w, "fu_age") := # compare to birthdate
              round(interval(start = rabdate,
@@ -175,7 +184,7 @@ hrs %<>%
 
 #---- Death ----
 # Create death indicator by wave
-for (w in 1:15){
+for (w in number_waves){
   hrs %<>%
     mutate(!!paste0("r", w, "dead") := 
              case_when(!!sym(paste0("r", w, "iwstat")) %in% c(5, 6) ~ 1,
@@ -186,17 +195,17 @@ for (w in 1:15){
 # Sanity check
 hrs %>% select(ends_with("dead")) %>% apply(., 2, table, useNA = "ifany")
 
-for (wave in 1:15){
+for (wave in number_waves){
   print(with(hrs, table(get(paste0("r", wave, "inw")), 
                         get(paste0("r", wave, "iwstat")), useNA = "ifany")))
 }
 
-for (wave in 1:15){
+for (wave in number_waves){
   print(with(hrs, table(get(paste0("r", wave, "dead")), 
                         !is.na(raddate), useNA = "ifany")))
 }
 
-for (wave in 1:15){
+for (wave in number_waves){
   print(with(hrs, table(get(paste0("r", wave, "dead")), 
                         get(paste0("r", wave, "iwstat")), useNA = "ifany")))
 }
@@ -204,8 +213,9 @@ for (wave in 1:15){
 # Covariates:
 # Time-independent: age at baseline, sex/gender, race/ethnicity, education
 # Time-dependent: marital status, depressive symptoms, household income, ADLs 
-# and IADLs, loneliness, health conditions: diabetes, hypertension, heart disease, stroke, 
-# cancer and lung disease.
+# and IADLs, loneliness, drinking, doctor visits, physical activities,
+# health conditions: diabetes, hypertension, heart disease, stroke, 
+# cancer and lung disease, self-rated health
 
 #---- Age ----
 age_m <- hrs %>% dplyr::select(contains("agem_e")) %>% 
@@ -219,7 +229,7 @@ hrs %<>% dplyr::select(-paste0("r", number_waves, "agem_e"))
 rm(age_m)
 
 # Use fu_age for exact age, unless it's missing, then use computed age
-for (w in 1:15){
+for (w in number_waves){
   hrs %<>%
     mutate(!!paste0("r", w, "age_v2") := 
              case_when(!is.na(!!sym(paste0("r", w, "fu_age"))) ~ 
@@ -301,7 +311,7 @@ hrs %<>%
 
 #---- Marital status ----
 # Create marital status categories
-for (wave in 1:15){
+for (wave in number_waves){
   hrs %<>% 
     mutate(
       !!paste0("r", wave, "mstat_2cat") := 
@@ -313,7 +323,7 @@ for (wave in 1:15){
 }
 
 # Sanity check
-for (wave in 1:15){
+for (wave in number_waves){
   print(with(hrs, table(get(paste0("r", wave, "mstat_2cat")),
                         get(paste0("r", wave, "mstat")), useNA = "ifany")))
 }
@@ -321,7 +331,7 @@ for (wave in 1:15){
 #---- Household income ----
 # Calculate individual level household income
 # total income/sqrt(household size)
-for (wave in 1:15){
+for (wave in number_waves){
   hrs %<>% 
     mutate(
       !!paste0("r", wave, "income_pp") := 
@@ -334,7 +344,7 @@ for (wave in 1:15){
 # hrs %>% select(contains("itot")) %>% apply(., 2, summary)
 
 #---- Insurance info ----
-for (wave in 1:15){
+for (wave in number_waves){
   hrs %<>% 
     mutate(
       !!paste0("r", wave, "insurance_2cat") := 
@@ -356,6 +366,32 @@ for (wave in 1:15){
 # hrs %>% select(contains("higov")) %>% apply(., 2, table, useNA = "ifany")
 # hrs %>% select(contains("prpcnt")) %>% apply(., 2, table, useNA = "ifany")
 
+#---- Number of doctor visits ----
+# Since wave 1 asks about doctor visits in prior 12 months, the others asked about 
+# prior 2 years (and not using wave 1 anyway), start with cleaning wave 2 doctors
+
+hrs %>% select(contains("doctor")) %>% apply(., 2, table, useNA = "ifany")
+hrs %>% select(contains("doctim")) %>% apply(., 2, summary)
+# with(hrs, table(r3doctor, r3doctim, useNA = "ifany"))
+
+# categorize at more than 5 visits (median)
+for (wave in 2:15){
+  hrs %<>% 
+    mutate(
+      !!paste0("r", wave, "doct_vis_mt5") := 
+        case_when(
+          !!sym(paste0("r", wave, "doctim")) >= 5 ~ 1,
+          !!sym(paste0("r", wave, "doctim")) < 5 |
+            !!sym(paste0("r", wave, "doctor")) == 0 ~ 0,
+          is.na(!!sym(paste0("r", wave, "doctim"))) ~ NA_real_))
+}
+
+# Sanity check
+hrs %>%
+  select(contains("doct_vis_mt5")) %>%
+  apply(., 2, table, useNA = "ifany")
+with(hrs %>% filter(is.na(r15doct_vis_mt5)), table(r15doctor, r15doctim, useNA = "ifany"))
+
 #---- Smoking ----
 # Smokes now
 hrs %>%
@@ -375,8 +411,82 @@ hrs %<>%
 # Sanity check
 with(hrs, table(r1flonex, r1flone, useNA = "ifany"))
 hrs %>%
-  select(paste0("r", 1:15, "flone")) %>%
+  select(paste0("r", number_waves, "flone")) %>%
   apply(., 2, table, useNA = "ifany")
+
+#---- Drinking ----
+# Based on 2000 Dietary Guidelines for Americans: 
+# https://odphp.health.gov/sites/default/files/2020-01/DGA2000.pdf
+
+# Moderation is defined as no more than one drink
+# per day for women and no more than two drinks per day for men.
+
+# drinks/day when drinks
+colSums(is.na(hrs %>% select(contains("drinkn"))))
+
+for (wave in 3:15){
+  hrs %<>% 
+    mutate(
+      !!paste0("r", wave, "mod_drinking") := 
+        case_when(female == 1 & !!sym(paste0("r", wave, "drinkn")) <= 1 ~ 1,
+                  female == 1 & !!sym(paste0("r", wave, "drinkn")) > 1 ~ 0,
+                  
+                  female == 0 & !!sym(paste0("r", wave, "drinkn")) <= 2 ~ 1,
+                  female == 0 & !!sym(paste0("r", wave, "drinkn")) > 2 ~ 0,
+                  !!sym(paste0("r", wave, "drinkd")) == 0 ~ 1,
+                  is.na(!!sym(paste0("r", wave, "drinkd"))) &
+                    is.na(!!sym(paste0("r", wave, "drinkn"))) ~ NA_real_))
+}
+
+# Sanity check
+hrs %>%
+  select(contains("mod_drinking")) %>%
+  apply(., 2, table, useNA = "ifany")
+# hrs %>% select(HHIDPN, contains("r3drink"), r3mod_drinking) %>% 
+#   filter(is.na(r3mod_drinking)) %>% view()
+# drinks / day
+colSums(is.na(hrs %>% select(contains("drinkn"))))
+# days/ week
+colSums(is.na(hrs %>% select(contains("drinkd"))))
+
+#---- Self-rated health ----
+hrs %>% select(contains("shlt")) %>% apply(., 2, table, useNA = "ifany")
+for (wave in number_waves){
+  hrs %<>% 
+    mutate(
+      !!paste0("r", wave, "shlt_fair_poor") := 
+        case_when(
+          # fair or poor
+          !!sym(paste0("r", wave, "shlt")) %in% c(4, 5) ~ 1,
+          # good, very good, excellent
+          !!sym(paste0("r", wave, "shlt")) %in% c(1, 2, 3) ~ 0))
+}
+# Sanity check
+hrs %>% 
+  select(contains("shlt_fair_poor")) %>% 
+  apply(., 2, table, useNA = "ifany")
+
+#---- Physical activities ----
+hrs %>% select(contains("vigact")) %>% apply(., 2, table, useNA = "ifany")
+hrs %>% select(contains("vgactx")) %>% apply(., 2, table, useNA = "ifany")
+
+for (wave in number_waves){
+  if (wave <= 6){
+    hrs %<>% 
+      mutate(!!paste0("r", wave, "vigorous_pa") := !!sym(paste0("r", wave, "vigact")))
+  } else if (wave %in% 7:15){
+    hrs %<>% 
+      mutate(
+        !!paste0("r", wave, "vigorous_pa") := 
+          case_when(
+            !!sym(paste0("r", wave, "vgactx")) %in% c(1, 2) ~ 1, # every day, >1 per week
+            !!sym(paste0("r", wave, "vgactx")) %in% c(3, 4, 5) ~ 0, # <= 1 per week
+            is.na(!!sym(paste0("r", wave, "vgactx"))) ~ NA_real_))
+  }
+}
+# Sanity check
+hrs %>% select(contains("vigorous_pa")) %>% apply(., 2, table, useNA = "ifany")
+
 
 #---- Health conditions ----
 # diabetes, hypertension, heart disease, stroke, cancer and lung disease
@@ -480,6 +590,8 @@ with(flusht_wide, table(num_flusht_alt, useNA = "ifany"))
 
 # flusht_wide %>% filter(seq_flusht == 1) %>% view()
 
+# Flu shot wide 
+
 #---- Dropping people ----
 ##---- 1. Dropping those who still missing age at e every wave ----
 table(hrs$female, useNA = "ifany")
@@ -491,21 +603,21 @@ with(hrs, table(is.na(rabdate))) # n = 1 missing age
 hrs_filtered <- hrs %>%
   filter(!is.na(rabdate)) # n = 42404
 
-##---- 2. Filter on participants eligible for 1996 interview ----
-# Filter on participants eligible for 1996 interview
-# and participated in 1994 interview to be able to have covariate values
-r3_resp_id <- hrs_filtered %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+##---- 2. Filter on participants eligible for 2000 interview ----
+# Filter on participants eligible for 2000 interview
+# and participated in 1998 interview to be able to have covariate values
+r5_resp_id <- hrs_filtered %>% filter(r5iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
 # filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
-r2_notinsamp_id <-  hrs_filtered %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
-r3_resp_r2insamp_id <- r3_resp_id[!r3_resp_id %in% r2_notinsamp_id] # 19845
-# hrs_id <- hrs_filtered %>% filter(hacohort == 3) %>% pull(HHIDPN) %>% unique()
-# table(r3_resp_r2insamp_id %in% hrs_id) # n=12362
-hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r3_resp_r2insamp_id)
-# n=19845
+r4_notinsamp_id <-  hrs_filtered %>% filter(r4iwstat == 0) %>% pull(HHIDPN) %>% unique()
+r5_resp_r4insamp_id <- r5_resp_id[!r5_resp_id %in% r4_notinsamp_id] # 21918
+
+hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r5_resp_r4insamp_id)
+# n=21918
+# with(hrs_filtered, table(racohbyr, useNA = "ifany"))
 
 #---- Select the variables ----
 hrs_selected <- hrs_filtered %>%
-  select(HHIDPN, raddate, hacohort, rabyear,
+  select(HHIDPN, raddate, hacohort, racohbyr, rabyear,
          contains("inw"),
          contains("iwstat"),
          ends_with("dead"),
@@ -515,6 +627,10 @@ hrs_selected <- hrs_filtered %>%
          contains(c("income_pp", "itot", "hhres")),
          contains(c("mstat", "insurance")),
          contains(c("smoken", "cesd", "flone")), -(contains("flonex")),
+         contains("mod_drinking"),
+         contains("vigorous_pa"),
+         contains("shlt_fair_poor"),
+         contains(c("doct_vis_mt5", "doctor")),
          contains(c("hibpe", "diabe", "cancre", "stroke", "hearte", "lunge")),
          contains(c("adl", "iadl")),
          contains("flusht"),
@@ -525,9 +641,21 @@ hrs_selected <- hrs_filtered %>%
 
 #---- Save the data ----
 saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
-save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected.RData"))
+save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected_2000.RData"))
 
 #---- OLD ----
+
+##---- 2. Filter on participants eligible for 1996 interview ----
+# # Filter on participants eligible for 1996 interview
+# # and participated in 1994 interview to be able to have covariate values
+# r3_resp_id <- hrs_filtered %>% filter(r3iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+# # filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
+# r2_notinsamp_id <-  hrs_filtered %>% filter(r2iwstat == 0) %>% pull(HHIDPN) %>% unique()
+# r3_resp_r2insamp_id <- r3_resp_id[!r3_resp_id %in% r2_notinsamp_id] # 19845
+# # hrs_id <- hrs_filtered %>% filter(hacohort == 3) %>% pull(HHIDPN) %>% unique()
+# # table(r3_resp_r2insamp_id %in% hrs_id) # n=12362
+# hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r3_resp_r2insamp_id)
+# # n=19845
 # ##---- Creating sub cohorts ----
 # # 4 subcohorts of flushot
 # # Sub cohort 1: 1996, 2000, 2004
