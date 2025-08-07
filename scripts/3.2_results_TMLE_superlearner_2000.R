@@ -77,12 +77,13 @@ lmtp_pe_se <- function(wave = 5, intervention, imp){
   }
 }
 
+num_imp <- 1
 results_pe_se <- 
   lapply(seq_along(1:num_imp), 
          function(x) lmtp_pe_se(intervention = "nc", imp = x)) %>%
   do.call(rbind,. )
 
-for (w in 5:12){
+for (w in waves_fu){
   for (imp in 1:num_imp){
     tryCatch({
       results_pe_se %<>% rbind(., lmtp_pe_se(w, "1sus", imp))
@@ -121,7 +122,7 @@ lmtp_res_contrast <- function(w_index, w_ref, intv_index, intv_ref, imp){
 }
 
 # Pending
-waves_fu <- 5:12
+waves_fu <- 5:15
 contrast_scenarios <- expand_grid(w_index = waves_fu,
                                   w_ref = waves_fu,
                                   intv_index = c("1sus", "nc"),
@@ -131,6 +132,15 @@ contrast_scenarios <- expand_grid(w_index = waves_fu,
             (intv_index == intv_ref & w_index > w_ref)),
          ((intv_index == "1sus" & intv_ref == "nc") |
             (intv_index == intv_ref)))
+
+# Pending
+# Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
+table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+y_w13_1sus_1$weights <- y_w5_1sus_1$weights
+y_w14_1sus_1$weights <- y_w5_1sus_1$weights
+y_w15_1sus_1$weights <- y_w5_1sus_1$weights
 
 raw_results_contrasts <- mapply(lmtp_res_contrast, 
                                 contrast_scenarios$w_index, 
@@ -163,7 +173,7 @@ results_contrasts <- raw_results_contrasts %>%
 
 load(here::here("data", "analysis_data", "data_for_cluster_20250731.RData"))
 # pending
-num_imp = 3
+num_imp = 1
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
@@ -195,12 +205,12 @@ get_po <- function(wave = 5, intervention, imp){
 waves_fu = 5:15
 results_po <- lapply(seq_along(1:num_imp), 
                      function(x) get_po(intervention = "nc", imp = x)) %>%
-  do.call(rbind,. ) %>%
-  # pending
-  select(-contains(paste0("w", 13:15)))
+  do.call(rbind,. )
+# # pending
+# select(-contains(paste0("w", 14:15)))
 
 results_po_sus <- tibble() 
-for (w in 5:12){
+for (w in waves_fu){
   for (imp in 1:num_imp){
     tryCatch({
       results_po_sus  %<>% rbind(., get_po(w, "1sus", imp))
@@ -218,28 +228,28 @@ results_po %<>% rbind(results_po_sus_wide)
 with(results_po, table(type, imp))
 
 # # Test: PO is sorted by the order of input data
-# hrs_imp1 <- hrs_imp_r3resp_wide %>% filter(imp == 1) %>%
-#   select(HHIDPN, r3age_v2, r3memimp, r3wtresp) %>%
-#   mutate(r3wtresp_norm = r3wtresp/mean(r3wtresp))
+# hrs_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
+#   select(HHIDPN, r5age_v2, r5memimp, r5wtresp) %>%
+#   mutate(r5wtresp_norm = r5wtresp/mean(r5wtresp))
 # results_po_imp1 <- results_po %>%
 #   filter(imp == 1, type == "nc")
 # weights_w3_mat <- hrs_imp1 %>%
-#   select(HHIDPN, r3wtresp_norm) %>%
+#   select(HHIDPN, r5wtresp_norm) %>%
 #   cbind(results_po_imp1 %>%
 #           select(weights_w3)) %>%
-#   mutate(check = case_when(round(r3wtresp_norm, 6) == round(weights_w3, 6) ~ 1,
+#   mutate(check = case_when(round(r5wtresp_norm, 6) == round(weights_w3, 6) ~ 1,
 #                            TRUE ~ 0))
 # with(weights_w3_mat, table(check, useNA = "ifany"))
 
 # #---- Save the cleaned data results ----
-# save(results_pe_se, results_contrasts, 
-#      file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
-# save(results_po, 
-#      file = here::here("data", "model_results", "lmtp_results_SL_po.RData"))
+save(results_pe_se, results_contrasts,
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000.RData"))
+save(results_po,
+     file = here::here("data", "model_results", "lmtp_results_SL_po_2000.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-# load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000.RData"))
 num_imp <- 3
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
@@ -254,8 +264,8 @@ results_pe_se_rubin <- results_pe_se %>%
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
-# saveRDS(results_pe_se_rubin, 
-#         here::here("data", "model_results", "lmtp_results_SL_rubin_forplot.RDS"))
+saveRDS(results_pe_se_rubin,
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000.RDS"))
 
 results_contrasts_rubin <- results_contrasts %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -272,9 +282,14 @@ results_contrasts_rubin <- results_contrasts %>%
          fu_year_index = survey_year_index - 2000)
 
 #---- Table and plots ----
+Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
+                weights = hrs_imp_r5resp_wide$r5wtresp, na.rm= T)
+# 0.1337671
+mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.0000000000000001564271
+
 ##---- Trajectory plot ----
-# results_pe_se_rubin <- 
-#   readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot.RDS"))
+results_pe_se_rubin <-
+  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000.RDS"))
 results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
@@ -301,7 +316,7 @@ results_pe_se_rubin %>%
   # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
   #                    labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
   labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
-    x = "Follow up years",
+    x = "Follow-up years",
     y = "Memory z-score") +
   theme_bw() +
   theme(legend.position = "bottom",
@@ -322,8 +337,8 @@ results_pe_se_rubin %>%
 #       strip.text = element_text(size = 16, color = "black"))
 # ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute_SER.png"),
 #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
-# ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute.png"), 
-#        device = "png", width = 9, height = 7, units = "in", dpi = 300)
+ggsave(here::here("output", "figures", "lmtp_traj_SL_2000_memimp_impute.png"),
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
 results_pe_se_year_table <- results_pe_se_rubin %>%
@@ -348,9 +363,9 @@ results_pe_se_year_table <- results_pe_se_rubin %>%
   pivot_wider(names_from = type, values_from = pe_ci, 
               names_glue = "{type} (95% CI)")
 
-# results_pe_se_year_table %>%
-#   writexl::write_xlsx(here::here("output", "tables", 
-#                                  "lmtp_pe_SL_ahead_hrs_memimp_impute.xlsx"))
+results_pe_se_year_table %>%
+  writexl::write_xlsx(here::here("output", "tables",
+                                 "lmtp_pe_SL_2000_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
 results_contrasts_year_table <- results_contrasts_rubin %>%
@@ -381,25 +396,26 @@ results_contrasts_year_table %>%
   select(fu_year_index, contains("pe_ci_")) %>%
   set_colnames(c("Follow up year", 
                  "Natural course (95% CI)", "Sustained flu shot (95% CI)", 
-                 "Sustained - natural course (95% CI)"))
-  # writexl::write_xlsx(
-  #   here::here("output", "tables", 
-  #              "lmtp_contrasts_SL_ahead_hrs_memimp_impute.xlsx"))
-  
-  #---- Comparing observed memory trajectories ----
+                 "Sustained - natural course (95% CI)")) %>%
+  writexl::write_xlsx(
+    here::here("output", "tables",
+               "lmtp_contrasts_SL_2000_memimp_impute.xlsx"))
+
+#---- Comparing observed memory trajectories ----
 with(results_po, table(type, imp, useNA = "ifany"))
 
 nc_po_long <- results_po %>%
-  filter(type == "nc") %>%
+  filter(type == "nc", imp == 1) %>%
   select(HHIDPN, imp, starts_with("po")) %>%
   pivot_longer(cols = -c(HHIDPN, imp), names_to = "wave", 
                values_to = "po",
                names_pattern = "po_w(.*)") %>%
   mutate(wave = as.numeric(wave))
 
-hrs_imp_r3resp_memimp_long <- hrs_imp_r3resp_wide %>%
-  select(HHIDPN, imp, r3wtresp, contains("memimp_stdz")) %>%
-  pivot_longer(cols = -c(HHIDPN, imp, r3wtresp), names_to = "wave", 
+hrs_imp_r5resp_memimp_long <- hrs_imp_r5resp_wide %>%
+  filter(imp == 1) %>%
+  select(HHIDPN, imp, r5wtresp, contains("memimp_stdz")) %>%
+  pivot_longer(cols = -c(HHIDPN, imp, r5wtresp), names_to = "wave", 
                values_to = "memimp_stdz",
                names_pattern = "r(.*)memimp_stdz") %>%
   mutate(wave = as.numeric(wave)) %>%
@@ -407,35 +423,52 @@ hrs_imp_r3resp_memimp_long <- hrs_imp_r3resp_wide %>%
   left_join(nc_po_long, by = c("HHIDPN", "imp", "wave")) %>%
   mutate(memimp_po_diff = po - memimp_stdz)
 
-with(hrs_imp_r3resp_memimp_long, table(wave, imp, useNA = "ifany"))
+with(hrs_imp_r5resp_memimp_long, table(wave, imp, useNA = "ifany"))
 # Size equals across imputations at different waves
 
-nc_observed_comp_tib <- hrs_imp_r3resp_memimp_long %>%
+nc_observed_comp_tib <- hrs_imp_r5resp_memimp_long %>%
+  filter(wave > 4) %>%
+  select(wave, memimp_stdz, po, r5wtresp) %>%
   group_by(wave) %>%
-  dplyr::summarize(mean_memimp_stdz = wtd.mean(memimp_stdz, weights = r3wtresp,
-                                               na.rm = TRUE),
-                   mean_po = mean(po, na.rm = T),
-                   mean_diff = mean(memimp_po_diff, na.rm = T))
+  dplyr::summarize(n = n(),
+                   # mean_memimpstdz = mean(memimp_stdz, na.rm = TRUE),
+                   # se_memimpstdz = sd(memimp_stdz, na.rm = TRUE)/sqrt(n),
+                   # mean_po = mean(po, na.rm = TRUE),
+                   # se_po = sd(po, na.rm = TRUE)/sqrt(n)) %>%
+                   mean_memimpstdz = wtd.mean(memimp_stdz, weights = r5wtresp,
+                                              na.rm = TRUE),
+                   se_memimpstdz = sqrt(wtd.var(memimp_stdz, weights = r5wtresp,
+                                                na.rm = TRUE))/sqrt(n),
+                   mean_po = wtd.mean(po, weights = r5wtresp,
+                                      na.rm = TRUE),
+                   se_po = sqrt(wtd.var(po, weights = r5wtresp,
+                                        na.rm = TRUE))/sqrt(n)) %>%
+  ungroup() %>%
+  mutate(fu_yr = (wave - 5) * 2)
 
 
 nc_observed_comp_tib %>%
-  pivot_longer(cols = mean_memimp_stdz:mean_po,
-               names_to = "type") %>%
-  ggplot(aes(x = wave, y = value, color = type)) +
-  geom_point() +
-  geom_line() +
-  scale_x_continuous(breaks = seq(3, 15, by = 1)) +
+  pivot_longer(cols = -c(wave, n, fu_yr),
+               names_to = c(".value", "type"),
+               names_pattern = "(.*)_(.*)") %>%
+  ggplot(aes(x = fu_yr, y = mean, group = type)) +
+  geom_point(position = position_dodge((width = 0.5))) +
+  geom_line(aes(linetype = type), position = position_dodge((width = 0.5))) +
+  geom_errorbar(aes(ymin = mean - qnorm(0.975) * se, 
+                    ymax = mean + qnorm(0.975) * se),
+                position = position_dodge((width = 0.5)),
+                width = 0.8) +
+  scale_x_continuous(breaks = seq(0, 20, by = 2)) +
+  scale_y_continuous(limits = c(-0.8, 0.2), breaks = seq(-0.8, 0.2, by = 0.2)) +
+  scale_linetype_manual(name = NULL, values = c("dashed", "solid"),
+                     labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
   theme_bw() +
-  scale_y_continuous(limits = c(-2, 0), breaks = seq(-2, 0, by = 0.2))
-
-nc_observed_comp_tib %>%
-  ggplot(aes(x = wave, y = mean_diff)) +
-  geom_point() +
-  geom_line() +
-  geom_hline(yintercept = 0) +
-  scale_x_continuous(breaks = seq(3, 15, by = 1)) +
-  theme_bw() +
-  scale_y_continuous(limits = c(-1, 0), breaks = seq(-2, 0, by = 0.2))
+  labs(x = "Follow-up year",
+       y = "Memory z-score",
+       color = "Type") +
+  theme(legend.position = "bottom")
+ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_memimp_impute.png"),
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 # NC no IPCW
 load(here::here("data", "model_results", "lmtp_nc_noipcw_results.RData"))

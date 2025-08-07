@@ -25,8 +25,6 @@ print(scenario_num)
 args
 
 #---- Package loading + option specifications ----
-# library(haven) # Read data
-library(dplyr)
 library(tidyverse)
 library(lmtp)
 library(SuperLearner) # Super Learner

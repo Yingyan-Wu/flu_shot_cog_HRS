@@ -5,8 +5,6 @@
 # running on participants without missingness till current wave
 
 #---- Package loading + option specifications ----
-# library(haven) # Read data
-library(dplyr)
 library(tidyverse)
 library(lmtp)
 library(SuperLearner) # Super Learner

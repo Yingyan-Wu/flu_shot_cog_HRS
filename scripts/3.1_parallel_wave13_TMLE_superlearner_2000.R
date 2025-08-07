@@ -71,11 +71,9 @@ scenario_tib <- scenario_tib[c(9, 10, 11), ]
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
-if (scenario_num > nrow(scenario_tib)) {
-  print(paste0("out of bound senario number", scenario_num))
-  # supply default value
-  scenario_num <- 1
-}
+# scenario_num <- 1
+# scenario_num <- 2
+scenario_num <- 3
 
 # print values just to make sure:
 print(scenario_num)
@@ -147,8 +145,14 @@ if (str_detect(intervention, "sus")){
   print(end_sus - start_sus)
 }
 
+# 17h on YW's mbp for wave 13
+# 15h on YW's mbp for wave 14
+# 16h on YW's mbp for wave 15
+
 #---- Save the lmtp object ----
-scenario_num <- case_when(scenario_num == 1 ~ 9)
+scenario_num <- case_when(scenario_num == 1 ~ 9,
+                          scenario_num == 2 ~ 10,
+                          scenario_num == 3 ~ 11)
 save(list = case_when(intervention == "nc" ~ paste0("lmtp_nc_results_imp_", num_imp),
                       TRUE ~ paste0("y_w", wave, "_", intervention, "_", num_imp)), 
      file = paste0(results_folder, "tmle_SL_scenario_", scenario_num, ".RData"))
