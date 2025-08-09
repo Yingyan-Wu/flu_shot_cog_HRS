@@ -25,6 +25,7 @@ rand_variables <- c("hhidpn", "ragender", "raracem", "rahispan", "rabmonth",
                     # Response indicator
                     paste0("inw", number_waves),
                     paste0("r", number_waves, "iwbeg"),# Interview begin dates
+                    paste0("r", number_waves, "nhmliv"), # living in nursing home at interview
                     paste0("r", number_waves, "agem_e"), "raedyrs", 
                     paste0("r", number_waves, "iwstat"),
                     paste0("r", number_waves, "wtresp"),
@@ -605,15 +606,59 @@ hrs_filtered <- hrs %>%
 
 ##---- 2. Filter on participants eligible for 2000 interview ----
 # Filter on participants eligible for 2000 interview
-# and participated in 1998 interview to be able to have covariate values
+# and participated in 1998 interview to be able to have prebaseline covariate values
 r5_resp_id <- hrs_filtered %>% filter(r5iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
 # filter(wave == 3, iwstat %in% c(1, 4)) %>% pull(HHIDPN) %>% unique()
 r4_notinsamp_id <-  hrs_filtered %>% filter(r4iwstat == 0) %>% pull(HHIDPN) %>% unique()
 r5_resp_r4insamp_id <- r5_resp_id[!r5_resp_id %in% r4_notinsamp_id] # 21918
 
-hrs_filtered <- hrs_filtered %>% filter(HHIDPN %in% r5_resp_r4insamp_id)
+hrs_filtered %<>% filter(HHIDPN %in% r5_resp_r4insamp_id)
 # n=21918
 # with(hrs_filtered, table(racohbyr, useNA = "ifany"))
+
+##---- 3. Filter on participants aged 52+ for 2000 interview ----
+# Since they need to be eligible for both 1998 and 2000 interview
+# people aged < 52 in 2000, these people were in the sample since they are spouses
+
+# check if we can do 50+ in 2000
+hrs_filtered %>% filter(r5age_v2 >= 50, r5age_v2 < 52) %>% with(., sum(r5wtresp, na.rm = T))
+# n=347, weighted n=55272 (too small to represent [50, 52) people)
+hrs_filtered %>% filter(r5age_v2 >= 52, r5age_v2 < 54) %>% with(., sum(r5wtresp, na.rm = T))
+# n=953, weighted n=5380803 for [52, 54) people
+
+hrs_filtered %>%
+  filter(r5age_v2 < 52) %>% nrow() # n=941 (age younger than 52)
+
+hrs_filtered %<>%
+  filter(r5age_v2 >= 52) #n=20977
+
+##---- 4. filter on participants not living in nursing home for 2000 ----
+# Filter on participants not living in nursing home for 2000 
+# (if missing, not living in nursing home in previous waves)
+with(hrs_filtered, table(r5nhmliv, r5iwstat, useNA = "ifany"))
+with(hrs_filtered %>% filter(r5iwstat == 4), 
+     table(r5nhmliv, r4nhmliv, useNA = "ifany"))
+with(hrs_filtered %>% filter(r5iwstat == 4, is.na(r5nhmliv)), 
+     table(r3nhmliv, r4nhmliv, useNA = "ifany"))
+hrs_filtered %<>%
+  mutate(
+    r5nursing_home_v2 = 
+      case_when(
+        r5nhmliv == 1 ~ 1, # living in nursing home
+        is.na(r5nhmliv) & r4nhmliv == 1 ~ 1,
+        is.na(r5nhmliv) & is.na(r4nhmliv) & r3nhmliv == 1 ~ 1,
+        is.na(r5nhmliv) & is.na(r4nhmliv) & is.na(r3nhmliv) & r2nhmliv == 1 ~ 1,
+        is.na(r5nhmliv) & is.na(r4nhmliv) & is.na(r3nhmliv) & is.na(r2nhmliv) &
+          r1nhmliv == 1 ~ 1,
+        is.na(r5nhmliv) & is.na(r4nhmliv) & is.na(r3nhmliv) & is.na(r2nhmliv) &
+          is.na(r1nhmliv) ~ NA_real_, 
+        TRUE ~ 0))# not living in nursing home
+
+with(hrs_filtered, table(r5nursing_home_v2, useNA = "ifany")) # n=539
+
+hrs_filtered %<>%
+  filter(r5nursing_home_v2 != 1) # n = 20438
+
 
 #---- Select the variables ----
 hrs_selected <- hrs_filtered %>%
@@ -641,10 +686,9 @@ hrs_selected <- hrs_filtered %>%
 
 #---- Save the data ----
 saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
-save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected_2000.RData"))
+save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected_2000_ot52.RData"))
 
 #---- OLD ----
-
 ##---- 2. Filter on participants eligible for 1996 interview ----
 # # Filter on participants eligible for 1996 interview
 # # and participated in 1994 interview to be able to have covariate values

@@ -16,7 +16,7 @@ source(here::here("scripts", "functions.R"))
 
 #---- Load the dataset ----
 # AHEAD, CODA, HRS, War babies
-load(here::here("data", "analysis_data", "hrs_selected_2000.RData"))
+load(here::here("data", "analysis_data", "hrs_selected_2000_ot52.RData"))
 hrs_selected %<>%
   labelled::remove_val_labels()
 
@@ -271,9 +271,9 @@ imp_pmm_10 <- mice::futuremice(impute_data, m = 10, maxit = 10,
                                n.core = 10)
 (end <- Sys.time())
 end - start
-# # m = 10, maxit = 10: 31.99983 mins parallel using 10 cores
+# # m = 10, maxit = 10: 37.18209 mins parallel using 10 cores
 
-save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_outcome_2000.RData"))
+save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_outcome_2000_ot52.RData"))
 
 imp_pmm_10$loggedEvents # dropping iwstat for a bunch of tv vars, can be ignored
 complete(imp_pmm_10) %>%
@@ -288,7 +288,7 @@ plot(imp_pmm_10)
 # densityplot(imp_pmm_10, ~memimp)
 
 #---- Stack imputed dataset ----
-load(here::here("data", "analysis_data", "imp_pmm_10_outcome_2000.RData"))
+load(here::here("data", "analysis_data", "imp_pmm_10_outcome_2000_ot52.RData"))
 
 imp_num = 10
 imp_temp <- list()
@@ -368,10 +368,11 @@ imp_pmm_stacked %<>%
   mutate(across(all_of(c(binary_vars, cat_vars)), \(x) as.numeric(as.character(x))))
 
 # Restandardize memory score
+# using weighted mean and sd from wave 5
 r5memimp_mean_sd_imp <- imp_pmm_stacked %>% filter(wave == 5) %>%
   group_by(imp) %>%
-  summarise(r5memimp_mean = mean(memimp),
-            r5memimp_sd = sd(memimp))
+  summarise(r5memimp_mean = Hmisc::wtd.mean(memimp, weights = r5wtresp),
+            r5memimp_sd = sqrt(Hmisc::wtd.var(memimp, weights = r5wtresp)))
 
 imp_pmm_stacked %<>%
   left_join(r5memimp_mean_sd_imp, by = "imp") %>%
@@ -384,6 +385,8 @@ imp_pmm_stacked %<>%
 
 # Sanity check
 with(imp_pmm_stacked, table(flusht, wave, useNA = "ifany"))
+imp_pmm_stacked %>% filter(wave == 5) %>% 
+  with(., Hmisc::wtd.mean(memimp_stdz, weights = r5wtresp))
 
 #---- Check Memory score imputed analytic sample by cohort ----
 hrs_imp_r5resp_memimp_long <- imp_pmm_stacked %>%
@@ -409,8 +412,8 @@ hrs_memimp_long <- hrs_selected %>%
   mutate(wave = as.numeric(wave)) %>%
   filter(wave >= 4)
 
-r5memimp_mean <- mean(hrs_selected$r5memimp, na.rm = T)
-r5memimp_sd <- sd(hrs_selected$r5memimp, na.rm = T)
+r5memimp_mean <- Hmisc::wtd.mean(hrs_selected$r5memimp, weights = hrs_selected$r5wtresp)
+r5memimp_sd <- sqrt(Hmisc::wtd.var(hrs_selected$r5memimp, weights = hrs_selected$r5wtresp))
 hrs_memimp_mean_cohort <- hrs_memimp_long %>%
   mutate(memimp_stdz = (memimp - r5memimp_mean)/r5memimp_sd) %>%
   left_join(hrs_selected %>% select(HHIDPN, racohbyr), by = "HHIDPN") %>%
@@ -450,7 +453,7 @@ hrs_memimp_preandpost_imp_cohort %>%
   theme_bw()
 
 #---- Save imputed data ----
-saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_outcome_2000.RDS"))
+saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_outcome_2000_ot52.RDS"))
 
 #---- OLD ----
 # ##---- Check the distribution of imputed memimp ----
