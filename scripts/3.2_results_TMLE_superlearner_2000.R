@@ -15,8 +15,8 @@ options(sci = 99999)
 
 #---- Read in the lmtp objects ----
 # Pending
-total_scenarios <- 1:36
-num_imp <- 3
+total_scenarios <- 1:120
+num_imp <- 10
 waves_fu <- 5:15
 results_folder <- here::here("data", "model_results", "TMLE_SuperLearner/")
 results_files <- list.files(path = results_folder, full.names = TRUE)
@@ -77,7 +77,7 @@ lmtp_pe_se <- function(wave = 5, intervention, imp){
   }
 }
 
-num_imp <- 1
+num_imp <- 10
 results_pe_se <- 
   lapply(seq_along(1:num_imp), 
          function(x) lmtp_pe_se(intervention = "nc", imp = x)) %>%
@@ -134,13 +134,18 @@ contrast_scenarios <- expand_grid(w_index = waves_fu,
             (intv_index == intv_ref)))
 
 # Pending
-# Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
-table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-y_w13_1sus_1$weights <- y_w5_1sus_1$weights
-y_w14_1sus_1$weights <- y_w5_1sus_1$weights
-y_w15_1sus_1$weights <- y_w5_1sus_1$weights
+# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
+# table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# y_w13_1sus_1$weights <- y_w5_1sus_1$weights
+# y_w14_1sus_1$weights <- y_w5_1sus_1$weights
+# y_w15_1sus_1$weights <- y_w5_1sus_1$weights
+
+# PENDING
+contrast_scenarios %<>%
+  filter(!w_index %in% c(14, 15), !w_ref %in% c(14, 15))
+
 
 raw_results_contrasts <- mapply(lmtp_res_contrast, 
                                 contrast_scenarios$w_index, 
@@ -171,7 +176,7 @@ results_contrasts <- raw_results_contrasts %>%
 # hist(y_w3_1sus_1$weights)
 # hist(y_w3_1sus_3$weights)
 
-load(here::here("data", "analysis_data", "data_for_cluster_20250731.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
 # pending
 num_imp = 1
 # The outcome_reg is organized by the order of participants in the input data
@@ -223,7 +228,11 @@ results_po_sus_wide <- results_po_sus %>%
               names_from = "wave", values_from = c("po", "weights"),
               names_glue = "{.value}_w{wave}")
 
-results_po %<>% rbind(results_po_sus_wide)
+# results_po %<>% rbind(results_po_sus_wide)
+
+# PENDING
+results_po %<>% select(-contains(paste0("w", 14:15))) %>%
+  rbind(results_po_sus_wide)
 # Sanity check
 with(results_po, table(type, imp))
 
@@ -243,14 +252,14 @@ with(results_po, table(type, imp))
 
 # #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52.RData"))
 save(results_po,
-     file = here::here("data", "model_results", "lmtp_results_SL_po_2000.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000.RData"))
-num_imp <- 3
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52.RData"))
+num_imp <- 1
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
   reframe(
@@ -265,7 +274,7 @@ results_pe_se_rubin <- results_pe_se %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
 saveRDS(results_pe_se_rubin,
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52.RDS"))
 
 results_contrasts_rubin <- results_contrasts %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -284,12 +293,12 @@ results_contrasts_rubin <- results_contrasts %>%
 #---- Table and plots ----
 Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
                 weights = hrs_imp_r5resp_wide$r5wtresp, na.rm= T)
-# 0.1337671
-mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.0000000000000001564271
+# 0.0000000000000004949333
+mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.1235858
 
 ##---- Trajectory plot ----
 results_pe_se_rubin <-
-  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000.RDS"))
+  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52.RDS"))
 results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
@@ -402,56 +411,66 @@ results_contrasts_year_table %>%
                "lmtp_contrasts_SL_2000_memimp_impute.xlsx"))
 
 #---- Comparing observed memory trajectories ----
-with(results_po, table(type, imp, useNA = "ifany"))
-
-nc_po_long <- results_po %>%
-  filter(type == "nc", imp == 1) %>%
-  select(HHIDPN, imp, starts_with("po")) %>%
-  pivot_longer(cols = -c(HHIDPN, imp), names_to = "wave", 
-               values_to = "po",
-               names_pattern = "po_w(.*)") %>%
-  mutate(wave = as.numeric(wave))
-
+# Compare based on pooled results
 hrs_imp_r5resp_memimp_long <- hrs_imp_r5resp_wide %>%
-  filter(imp == 1) %>%
   select(HHIDPN, imp, r5wtresp, contains("memimp_stdz")) %>%
   pivot_longer(cols = -c(HHIDPN, imp, r5wtresp), names_to = "wave", 
                values_to = "memimp_stdz",
                names_pattern = "r(.*)memimp_stdz") %>%
   mutate(wave = as.numeric(wave)) %>%
-  na.omit() %>%
-  left_join(nc_po_long, by = c("HHIDPN", "imp", "wave")) %>%
-  mutate(memimp_po_diff = po - memimp_stdz)
+  na.omit()
 
 with(hrs_imp_r5resp_memimp_long, table(wave, imp, useNA = "ifany"))
 # Size equals across imputations at different waves
 
 nc_observed_comp_tib <- hrs_imp_r5resp_memimp_long %>%
   filter(wave > 4) %>%
-  select(wave, memimp_stdz, po, r5wtresp) %>%
+  select(wave, memimp_stdz, r5wtresp) %>%
   group_by(wave) %>%
   dplyr::summarize(n = n(),
-                   # mean_memimpstdz = mean(memimp_stdz, na.rm = TRUE),
-                   # se_memimpstdz = sd(memimp_stdz, na.rm = TRUE)/sqrt(n),
-                   # mean_po = mean(po, na.rm = TRUE),
-                   # se_po = sd(po, na.rm = TRUE)/sqrt(n)) %>%
-                   mean_memimpstdz = wtd.mean(memimp_stdz, weights = r5wtresp,
-                                              na.rm = TRUE),
-                   se_memimpstdz = sqrt(wtd.var(memimp_stdz, weights = r5wtresp,
-                                                na.rm = TRUE))/sqrt(n),
-                   mean_po = wtd.mean(po, weights = r5wtresp,
-                                      na.rm = TRUE),
-                   se_po = sqrt(wtd.var(po, weights = r5wtresp,
-                                        na.rm = TRUE))/sqrt(n)) %>%
+                   mean_memimpstdz = Hmisc::wtd.mean(memimp_stdz, weights = r5wtresp,
+                                                     na.rm = TRUE),
+                   se_memimpstdz = sqrt(Hmisc::wtd.var(memimp_stdz, weights = r5wtresp,
+                                                       na.rm = TRUE))/sqrt(n)) %>%
   ungroup() %>%
   mutate(fu_yr = (wave - 5) * 2)
 
+results_pe_se_rubin <- results_pe_se %>%
+  group_by(type, wave) %>%
+  reframe(
+    point_est_rubin = mean(point_est),
+    vw = sum((se)^2)/num_imp,
+    vb = sum((point_est - point_est_rubin)^2)/(num_imp-1),
+    se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
+  select(-vb, -vw) %>%
+  mutate(num_imp = num_imp,
+         ll_rubin = point_est_rubin - qnorm(0.975)*se_rubin,
+         ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
+         survey_year = (wave - 5)*2 + 2000,
+         fu_year = survey_year - 2000)
+
+# From the lmtp no ipcw nc results
+load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_ot52.RData"))
+nc_noipcw_imp1 <- nc_results %>%
+  filter(imp == 1) %>%
+  rename(mean_ponc = point_est,
+         se_ponc = se)
+
+nc_observed_comp_tib %<>%
+  left_join(nc_noipcw_imp1, by = "wave")
+# No IPCW NC PO is the same as observed mean!!!
 
 nc_observed_comp_tib %>%
   pivot_longer(cols = -c(wave, n, fu_yr),
                names_to = c(".value", "type"),
                names_pattern = "(.*)_(.*)") %>%
-  ggplot(aes(x = fu_yr, y = mean, group = type)) +
+  filter(type == "memimpstdz") %>%
+  rbind(., nc_observed_comp_tib %>%
+          pivot_longer(cols = -c(wave, n, fu_yr),
+                       names_to = c(".value", "type"),
+                       names_pattern = "(.*)_(.*)") %>%
+          filter(type == "memimpstdz") %>% mutate(type = "po")) %>%
+  ggplot(aes(x = fu_yr, y = mean, group = type, color = type)) +
   geom_point(position = position_dodge((width = 0.5))) +
   geom_line(aes(linetype = type), position = position_dodge((width = 0.5))) +
   geom_errorbar(aes(ymin = mean - qnorm(0.975) * se, 
@@ -459,34 +478,16 @@ nc_observed_comp_tib %>%
                 position = position_dodge((width = 0.5)),
                 width = 0.8) +
   scale_x_continuous(breaks = seq(0, 20, by = 2)) +
-  scale_y_continuous(limits = c(-0.8, 0.2), breaks = seq(-0.8, 0.2, by = 0.2)) +
+  # scale_y_continuous(limits = c(-0.8, 0.2), breaks = seq(-0.8, 0.2, by = 0.2)) +
   scale_linetype_manual(name = NULL, values = c("dashed", "solid"),
+                        labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
+  scale_color_manual(name = NULL, values = c("#74B72E", "#3A5311"),
                      labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
   theme_bw() +
   labs(x = "Follow-up year",
        y = "Memory z-score",
        color = "Type") +
   theme(legend.position = "bottom")
+
 ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_memimp_impute.png"),
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
-
-# NC no IPCW
-load(here::here("data", "model_results", "lmtp_nc_noipcw_results.RData"))
-nc_noipcw_rubin <- nc_results %>%
-  group_by(wave) %>%
-  dplyr::summarize(mean_po_noipcw = mean(point_est))
-
-nc_observed_comp_tib %<>%
-  left_join(nc_noipcw_rubin, by = "wave")
-# No IPCW NC PO is the same as observed mean!!!
-
-nc_observed_comp_tib %>%
-  select(-mean_diff) %>%
-  pivot_longer(cols = mean_memimp_stdz:mean_po_noipcw,
-               names_to = "type") %>%
-  ggplot(aes(x = wave, y = value, color = type)) +
-  geom_point() +
-  geom_line() +
-  scale_x_continuous(breaks = seq(3, 15, by = 1)) +
-  theme_bw() +
-  scale_y_continuous(limits = c(-2, 0), breaks = seq(-2, 0, by = 0.2))

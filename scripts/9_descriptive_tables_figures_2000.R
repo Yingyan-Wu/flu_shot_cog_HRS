@@ -73,6 +73,10 @@ hrs_imp_r5resp_wide %>% group_by(flusht_cat) %>% dplyr::summarize(
 with(hrs_imp_r5resp %>%
        filter(imp == 1, wave == 5),
      summary(r5age_v2))
+# death
+with(hrs_imp_r5resp_wide %>%
+       filter(imp == 1),
+     table(r15dead, useNA = "ifany"))
 
 # #---- Baseline age per cohort ----
 # load(here::here("data", "analysis_data", "hrs_selected_2000.RData"))
@@ -422,6 +426,42 @@ ggsave(here::here("output", "figures", "fig_flusht_traj_2000.png"),
 missing_summary <- readxl::read_xlsx(here::here("output", "tables", 
                                                 "missing_summary_2000.xlsx"))
 
+missing_summary_fmt <- missing_summary %>%
+  mutate(labels = case_when(feature == "iwstat" ~ "Interview status",
+                            feature == "r5wtresp" ~ "Baseline survey weight",
+                            feature == "female" ~ "Sex/gender",
+                            feature == "age_v2" ~ "Age",
+                            feature == "raceeth" ~ "Race and ethnicity",
+                            feature == "raedyrs" ~ "Years of education",
+                            feature == "mstat_2cat" ~ "Marital status",
+                            feature == "income_pp" ~ "Household income per person",
+                            feature == "insurance_2cat" ~ "Health insurance",
+                            feature == "doct_vis_mt5" ~ "Number of doctor visits",
+                            feature == "mod_drinking" ~ "Alcohol drinking",
+                            feature == "vigorous_pa" ~ "Physical activity",
+                            feature == "shlt_fair_poor" ~ "Self-rated health",
+                            feature == "smoken" ~ "Smoking status",
+                            feature == "cesd" ~ "Center for Epidemiological Studies-Depression score",
+                            feature == "flone" ~ "Loneliness status",
+                            feature == "hibpe" ~ "Self-reported hypertension",
+                            feature == "diabe" ~ "Self-reported diabetes",
+                            feature == "cancre" ~ "Self-reported cancer",
+                            feature == "stroke" ~ "Self-reported stroke",
+                            feature == "hearte" ~ "Self-reported heart disease",
+                            feature == "lunge" ~ "Self-reported lung disease",
+                            feature == "adl_2cat" ~ "Activities of daily living",
+                            feature == "flusht" ~ "Influenza vaccination",
+                            feature == "iadl_2cat" ~ "Instrumental activities of daily living",
+                            feature == "memimp" ~ "Memory score",
+                            feature == "hhres" ~ "Household size",
+                            feature == "itot" ~ "Household income"),
+         pct_missing = round(pct_missing, 2)) %>%
+  filter(!is.na(labels)) %>%
+  select(labels, pct_missing)
+
+writexl::write_xlsx(missing_summary_fmt,
+                    here::here("output", "tables", "missing_summary_2000_fmt.xlsx"))
+
 #---- Table S: death/ loss to follow up over time ----
 # Sanity check on iwstat not change for each imp
 with(hrs_imp_r5resp, table(imp, iwstat, useNA = "ifany"))
@@ -439,11 +479,11 @@ hrs_imp_r5resp %>%
                     values = c("#94CEF0", "#3271AE", "#B0B0B0")) +
   geom_text(stat = "count", aes(label = after_stat(count)), 
             position = position_fill(vjust = 0.5), size = 3)
-  
-  
+
+
 pivot_wider(names_from = "wave", 
-              values_from = "iwstat",
-              names_glue = "r{wave}iwstat") %>%
+            values_from = "iwstat",
+            names_glue = "r{wave}iwstat") %>%
   select(-HHIDPN, -r2iwstat) %>%
   tbl_summary() %>%
   bold_labels()

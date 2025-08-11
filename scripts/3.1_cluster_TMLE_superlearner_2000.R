@@ -44,11 +44,10 @@ data_folder <- paste0(project_folder, "data/")
 results_folder <- paste0(project_folder, "TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250731.RData"))
+load(paste0(data_folder, "data_for_cluster_20250809.RData"))
 
 #---- Scenario tibble ----
-# PENDING running on 3 imputation first
-n_imp = 3
+n_imp = 10
 waves_fu = 5:15
 # Specify base learners for Super Learning
 # Review available models. 
@@ -62,7 +61,9 @@ scenario_tib <- expand_grid(
   interventions = "1sus") %>%  # "0sus")) %>%
   add_row(imp = 1:n_imp,
           waves = NA,
-          interventions = "nc")
+          interventions = "nc") %>%
+  # faster things run first
+  arrange(desc(interventions), waves)
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
@@ -87,7 +88,7 @@ print(intervention)
 print(num_imp)
 
 dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp)
-nrow(dt_imp_wide_imp1) # 21918
+nrow(dt_imp_wide_imp1) # 20438
 
 #---- Analysis ----
 if (intervention == "nc"){

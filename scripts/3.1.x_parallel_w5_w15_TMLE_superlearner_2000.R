@@ -47,11 +47,10 @@ results_folder <- here::here("data", "model_results", "TMLE_SuperLearner/")
 # results_folder <- paste0(project_folder, "TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250731.RData"))
+load(paste0(data_folder, "data_for_cluster_20250809.RData"))
 
 #---- Scenario tibble ----
-# PENDING running on 3 imputation first
-n_imp = 3
+n_imp = 10
 waves_fu = 5:15
 # Specify base learners for Super Learning
 # Review available models. 
@@ -65,15 +64,18 @@ scenario_tib <- expand_grid(
   interventions = "1sus") %>%  # "0sus")) %>%
   add_row(imp = 1:n_imp,
           waves = NA,
-          interventions = "nc")
+          interventions = "nc") %>%
+  # faster things run first
+  arrange(desc(interventions), waves)
 
-scenario_tib <- scenario_tib[c(9, 10, 11), ]
+# Run NC, wave 5 and wave 15 1sus first
+scenario_tib <- scenario_tib[c(1, 11, 111), ]
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
 # scenario_num <- 1
-# scenario_num <- 2
-scenario_num <- 3
+scenario_num <- 2
+# scenario_num <- 3
 
 # print values just to make sure:
 print(scenario_num)
@@ -145,14 +147,12 @@ if (str_detect(intervention, "sus")){
   print(end_sus - start_sus)
 }
 
-# 17h on YW's mbp for wave 13
-# 15h on YW's mbp for wave 14
-# 16h on YW's mbp for wave 15
+# 50.44528min on YW's mbp for wave 5
 
 #---- Save the lmtp object ----
-scenario_num <- case_when(scenario_num == 1 ~ 9,
-                          scenario_num == 2 ~ 10,
-                          scenario_num == 3 ~ 11)
+scenario_num <- case_when(scenario_num == 1 ~ 1,
+                          scenario_num == 2 ~ 11,
+                          scenario_num == 3 ~ 111)
 save(list = case_when(intervention == "nc" ~ paste0("lmtp_nc_results_imp_", num_imp),
                       TRUE ~ paste0("y_w", wave, "_", intervention, "_", num_imp)), 
      file = paste0(results_folder, "tmle_SL_scenario_", scenario_num, ".RData"))

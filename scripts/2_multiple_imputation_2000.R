@@ -453,7 +453,7 @@ hrs_memimp_preandpost_imp_cohort %>%
   theme_bw()
 
 #---- Save imputed data ----
-saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_outcome_2000_ot52.RDS"))
+saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52.RDS"))
 
 #---- OLD ----
 # ##---- Check the distribution of imputed memimp ----

@@ -18,23 +18,12 @@ library(earth)
 #---- Load the data & function ----
 # # Paths local
 data_folder <- here::here("data", "analysis_data/")
-
-# # Paths cluster
-# project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
-# data_folder <- paste0(project_folder, "data/")
-# results_folder <- paste0(project_folder, "TMLE_SuperLearner/")
-
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250502.RData"))
+load(paste0(data_folder, "data_for_cluster_20250809.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
-waves_fu = 3:15
-# Specify base learners for Super Learning
-# Review available models. 
-# listWrappers()
-## GLM, random forest, and MARS (multivariate adaptive regression splines)
-sl_lib <- c("SL.glm", "SL.randomForest", "SL.earth")
+waves_fu = 5:15
 
 scenario_tib <- expand_grid(imp = 1:n_imp,
                             waves = waves_fu,
@@ -54,7 +43,7 @@ nc_parallel_func <- function(scenario_num){
   outcome_var <- paste0("r", wave, "memimp_stdz")
   
   # Filter on nonmissing outcome at each wave
-  dt_imp_wide_imp1 <- hrs_imp_r3resp_wide %>% filter(imp == num_imp,
+  dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp,
                                                      !is.na(get(outcome_var)))
   nrow(dt_imp_wide_imp1)
   
@@ -65,7 +54,7 @@ nc_parallel_func <- function(scenario_num){
                             time_vary = L_allwaves[[i]],
                             outcome_type = "continuous",
                             mtp = FALSE, 
-                            weights = dt_imp_wide_imp1$r3wtresp,
+                            weights = dt_imp_wide_imp1$r5wtresp,
                             folds = 1)
   
   results <- c(lmtp_nc_temp$theta, lmtp_nc_temp$standard_error) %>%
@@ -81,7 +70,7 @@ nc_parallel_func <- function(scenario_num){
 #---- Parallel set up ----
 (start_nc <- Sys.time())
 plan(multisession, workers = 10)
-test <- future_Map(function(i) {
+lmtp_nc_noipcw <- future_Map(function(i) {
   nc_parallel_func(scenario_num = i)
 }, 
 i = 1:nrow(scenario_tib), future.seed = TRUE)
@@ -89,8 +78,12 @@ i = 1:nrow(scenario_tib), future.seed = TRUE)
 plan(sequential)
 (end_nc <- Sys.time())
 end_nc - start_nc
+# 26.02432 mins parallel on 10 cores
 
-nc_results <- do.call(rbind, test)
+nc_results <- do.call(rbind, lmtp_nc_noipcw)
 
 #---- save the results ----
-save(nc_results, file = here::here("data", "model_results", "lmtp_nc_noipcw_results.RData"))
+save(lmtp_nc_noipcw, file = here::here("data", "model_results", 
+                                       "lmtp_nc_noipcw_model_output_2000_ot52.RData"))
+save(nc_results, file = here::here("data", "model_results", 
+                                   "lmtp_nc_noipcw_results_2000_ot52.RData"))

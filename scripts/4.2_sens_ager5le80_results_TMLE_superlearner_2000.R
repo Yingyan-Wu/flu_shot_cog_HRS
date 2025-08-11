@@ -1,4 +1,4 @@
-# Obtain estimates from the cluster results (Sens r3age <= 80)
+# Obtain estimates from the cluster results (Sens r5age <= 80)
 # local script
 # Yingyan Wu
 # Same calculation and process as in Script 3.2 (using HRS only Sens dataset and cluster results)
@@ -132,6 +132,15 @@ contrast_scenarios <- expand_grid(w_index = waves_fu,
             # (intv_index == "1sus" & intv_ref == "0sus") |
             (intv_index == intv_ref)))
 
+# PENDING
+contrast_scenarios %<>%
+  filter(!w_index %in% 14:15, !w_ref %in% 14:15) # Remove waves 14 and 15
+y_w12_1sus_2 <- y_w12_1sus_5
+y_w12_1sus_2$weights <- lmtp_nc_results_imp_2[[8]]$weights
+
+y_w13_1sus_7 <- y_w13_1sus_2
+y_w13_1sus_7$weights <- lmtp_nc_results_imp_7[[9]]$weights
+
 raw_results_contrasts <- mapply(lmtp_res_contrast, 
                                 contrast_scenarios$w_index, 
                                 contrast_scenarios$w_ref, 
@@ -160,7 +169,7 @@ load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250731.RD
 # PENDING
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
-HHIDPN_vec <- hrs_imp_r3resp_wide %>% filter(imp == 1) %>%
+HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
   pull(HHIDPN)
 
 get_po <- function(wave = 3, intervention, imp){
@@ -204,19 +213,20 @@ results_po_sus_wide <- results_po_sus %>%
               names_from = "wave", values_from = c("po", "weights"),
               names_glue = "{.value}_w{wave}")
 
-results_po %<>% rbind(results_po_sus_wide)
+results_po %<>% select(-contains(paste0("w", 14:15))) %>%
+  rbind(results_po_sus_wide)
 # Sanity check
 with(results_po, table(type, imp))
 
 #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, 
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager3le80.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000.RData"))
 save(results_po, 
-     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_ager3le80.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_ager5le80_2000.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager3le80.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000.RData"))
 results_pe_se_sens <- results_pe_se
 results_contrasts_sens <- results_contrasts
 num_imp = 10
@@ -233,9 +243,9 @@ results_pe_se_rubin_sens <- results_pe_se_sens %>%
          ll_rubin = point_est_rubin - qnorm(0.975)*se_rubin,
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year = (wave - 5)*2 + 2000,
-         fu_year = survey_year - 1996)
+         fu_year = survey_year- 2000)
 saveRDS(results_pe_se_rubin_sens, 
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_ager3le80.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_ager5le80_2000.RDS"))
 
 results_contrasts_rubin_sens <- results_contrasts_sens %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -249,7 +259,7 @@ results_contrasts_rubin_sens <- results_contrasts_sens %>%
          ll_rubin = point_est_rubin - qnorm(0.975)*se_rubin,
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year_index = (wave_index - 5)*2 + 2000,
-         fu_year_index = survey_year_index - 1996)
+         fu_year_index = survey_year_index- 2000)
 
 #---- Table and plots ----
 ##---- Trajectory plot ----
@@ -282,7 +292,7 @@ results_pe_se_rubin_sens %>%
         axis.text.x = element_text(size = 12, color = "black"), 
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "sens_ager3le80_lmtp_traj_SL_ahead_hrs_memimp_impute.png"), 
+ggsave(here::here("output", "figures", "sens_ager5le80_lmtp_traj_SL_2000_memimp_impute_2000.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
@@ -310,14 +320,14 @@ results_pe_se_year_table_sens <- results_pe_se_rubin_sens %>%
 
 results_pe_se_year_table_sens %>%
   writexl::write_xlsx(here::here("output", "tables", 
-                                 "sens_ager3le80_lmtp_pe_SL_ahead_hrs_memimp_impute.xlsx"))
+                                 "sens_ager5le80_lmtp_pe_SL_2000_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
 results_contrasts_year_table_sens <- results_contrasts_rubin_sens %>%
   mutate(across(c(intervention_index, intervention_ref),
                 ~case_when(. == "Natural course" ~ "nc",
                            . == "Continuous flu shot" ~ "1sus"))) %>%
-  filter(intervention_index == intervention_ref, wave_ref == 3) %>%
+  filter(intervention_index == intervention_ref, wave_ref == 5) %>%
   select(fu_year_index, intervention_index, point_est_rubin, se_rubin) %>%
   rename(pe = point_est_rubin, se = se_rubin) %>%
   pivot_wider(names_from = intervention_index, values_from = c(pe, se), 
@@ -341,6 +351,6 @@ results_contrasts_year_table_sens %>%
   select(fu_year_index, contains("pe_ci_")) %>%
   writexl::write_xlsx(
     here::here("output", "tables", 
-               "sens_ager3le80_lmtp_contrasts_SL_ahead_hrs_memimp_impute.xlsx"))
+               "sens_ager5le80_lmtp_contrasts_SL_2000_memimp_impute.xlsx"))
 
 

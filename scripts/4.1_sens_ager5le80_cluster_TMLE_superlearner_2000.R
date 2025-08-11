@@ -45,7 +45,7 @@ data_folder <- paste0(project_folder, "data/")
 results_folder <- paste0(project_folder, "TMLE_SuperLearner_sens_ager5le80/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_ager5le80_20250731.RData"))
+load(paste0(data_folder, "data_for_cluster_ager5le80_20250809.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -62,7 +62,9 @@ scenario_tib <- expand_grid(
   interventions = "1sus") %>% # "0sus")) %>%
   add_row(imp = 1:n_imp,
           waves = NA,
-          interventions = "nc")
+          interventions = "nc") %>%
+# faster things run first
+arrange(desc(interventions), waves)
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
@@ -86,7 +88,7 @@ print(i)
 print(intervention)
 print(num_imp)
 
-dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp) # 18788 obs
+dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp) # 17655 obs
 nrow(dt_imp_wide_imp1)
 
 #---- Analysis ----
