@@ -14,7 +14,6 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 99999)
 
 #---- Read in the lmtp objects ----
-# Pending
 total_scenarios <- 1:120
 num_imp <- 10
 waves_fu <- 5:15
@@ -29,6 +28,11 @@ total_scenarios[which(!total_scenarios %in% scenarios_res)]
 for (s in scenarios_res){
   load(paste0(results_folder, "tmle_SL_scenario_", s, ".RData"))
 }
+
+# PENDING: Work on imputations with full results
+full_imps <- c(2, 5:10)
+full_waves <- 5:15
+
 # lmtp_tmle function returned these values for every participant
 # 1. eif
 # 2. id
@@ -41,7 +45,7 @@ for (s in scenarios_res){
 
 # #---- Fits ----
 # for (wave in waves_fu){
-#   for (imp in 1:num_imp){
+#   for (imp in full_imps){
 #     for (intervention in c("1sus", "0sus")){
 #       tryCatch({
 #         print(get(paste0("y_w", wave, "_", intervention, "_", imp))$fits_m)
@@ -77,14 +81,13 @@ lmtp_pe_se <- function(wave = 5, intervention, imp){
   }
 }
 
-num_imp <- 10
 results_pe_se <- 
-  lapply(seq_along(1:num_imp), 
+  lapply(seq_along(full_imps), 
          function(x) lmtp_pe_se(intervention = "nc", imp = x)) %>%
   do.call(rbind,. )
 
-for (w in waves_fu){
-  for (imp in 1:num_imp){
+for (w in full_waves){
+  for (imp in full_imps){
     tryCatch({
       results_pe_se %<>% rbind(., lmtp_pe_se(w, "1sus", imp))
     }, error = function(e) print(e))
@@ -121,13 +124,11 @@ lmtp_res_contrast <- function(w_index, w_ref, intv_index, intv_ref, imp){
                                   intervention_ref = intv_ref, imp = imp))
 }
 
-# Pending
-waves_fu <- 5:15
-contrast_scenarios <- expand_grid(w_index = waves_fu,
-                                  w_ref = waves_fu,
+contrast_scenarios <- expand_grid(w_index = full_waves,
+                                  w_ref = full_waves,
                                   intv_index = c("1sus", "nc"),
                                   intv_ref = c("1sus", "nc"),
-                                  imp = 1:num_imp) %>%
+                                  imp = full_imps) %>%
   filter(((intv_index != intv_ref & w_index == w_ref) | 
             (intv_index == intv_ref & w_index > w_ref)),
          ((intv_index == "1sus" & intv_ref == "nc") |
@@ -141,11 +142,6 @@ contrast_scenarios <- expand_grid(w_index = waves_fu,
 # y_w13_1sus_1$weights <- y_w5_1sus_1$weights
 # y_w14_1sus_1$weights <- y_w5_1sus_1$weights
 # y_w15_1sus_1$weights <- y_w5_1sus_1$weights
-
-# PENDING
-contrast_scenarios %<>%
-  filter(!w_index %in% c(14, 15), !w_ref %in% c(14, 15))
-
 
 raw_results_contrasts <- mapply(lmtp_res_contrast, 
                                 contrast_scenarios$w_index, 
@@ -164,6 +160,17 @@ results_contrasts <- raw_results_contrasts %>%
                 ~case_when(. == "nc" ~ "Natural course",
                            . == "1sus" ~ "Continuous flu shot")))
 
+results_contrasts_memory_change <- results_contrasts %>%
+  mutate(across(c(intervention_index, intervention_ref),
+                ~case_when(. == "Natural course" ~ "nc",
+                           . == "Continuous flu shot" ~ "1sus"))) %>%
+  filter(intervention_index == intervention_ref, wave_ref == 5) %>%
+  select(imp, wave_index, intervention_index, pe = point_est, se) %>%
+  pivot_wider(names_from = intervention_index, values_from = c(pe, se), 
+              names_glue = "{.value}_{intervention_index}") %>%
+  mutate(pe_1susnc = pe_1sus - pe_nc,
+         se_1susnc = sqrt(se_1sus^2 + se_nc^2))
+
 #---- Potential outcomes ----
 # Obtain predicted potential outcomes and normalized sampling weights
 # normalized sampling weights were slightly different across imputation
@@ -177,8 +184,7 @@ results_contrasts <- raw_results_contrasts %>%
 # hist(y_w3_1sus_3$weights)
 
 load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
-# pending
-num_imp = 1
+
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
@@ -207,16 +213,13 @@ get_po <- function(wave = 5, intervention, imp){
   }
 }
 
-waves_fu = 5:15
-results_po <- lapply(seq_along(1:num_imp), 
+results_po <- lapply(full_imps, 
                      function(x) get_po(intervention = "nc", imp = x)) %>%
   do.call(rbind,. )
-# # pending
-# select(-contains(paste0("w", 14:15)))
 
 results_po_sus <- tibble() 
-for (w in waves_fu){
-  for (imp in 1:num_imp){
+for (w in full_waves){
+  for (imp in full_imps){
     tryCatch({
       results_po_sus  %<>% rbind(., get_po(w, "1sus", imp))
     }, error = function(e) print(e))
@@ -230,9 +233,10 @@ results_po_sus_wide <- results_po_sus %>%
 
 # results_po %<>% rbind(results_po_sus_wide)
 
-# PENDING
-results_po %<>% select(-contains(paste0("w", 14:15))) %>%
+results_po %<>% 
+  # select(-contains(paste0("w", waves_fu[!waves_fu %in% full_waves]))) %>%
   rbind(results_po_sus_wide)
+
 # Sanity check
 with(results_po, table(type, imp))
 
@@ -251,7 +255,7 @@ with(results_po, table(type, imp))
 # with(weights_w3_mat, table(check, useNA = "ifany"))
 
 # #---- Save the cleaned data results ----
-save(results_pe_se, results_contrasts,
+save(results_pe_se, results_contrasts, results_contrasts_memory_change,
      file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52.RData"))
 save(results_po,
      file = here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52.RData"))
@@ -259,7 +263,7 @@ save(results_po,
 #---- Rubin's rule ----
 ##---- PE CI ----
 load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52.RData"))
-num_imp <- 1
+num_imp <- length(full_imps)
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
   reframe(
@@ -289,6 +293,24 @@ results_contrasts_rubin <- results_contrasts %>%
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year_index = (wave_index - 5)*2 + 2000,
          fu_year_index = survey_year_index - 2000)
+
+results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
+  pivot_longer(cols = -c(imp, wave_index),
+               names_to = c(".value", "intervention"),
+               names_pattern = "(.*)_(.*)") %>%
+  group_by(wave_index, intervention) %>%
+  reframe(
+    pe_rubin = mean(pe),
+    vw = sum((se)^2)/num_imp,
+    vb = sum((pe - pe_rubin)^2)/(num_imp-1),
+    se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
+  select(-vb, -vw) %>%
+  mutate(num_imp = num_imp,
+         ll_rubin = pe_rubin - qnorm(0.975)*se_rubin,
+         ul_rubin = pe_rubin + qnorm(0.975)*se_rubin,
+         survey_year_index = (wave_index - 5)*2 + 2000,
+         fu_year_index = survey_year_index - 2000)
+
 
 #---- Table and plots ----
 Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
@@ -377,32 +399,17 @@ results_pe_se_year_table %>%
                                  "lmtp_pe_SL_2000_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
-results_contrasts_year_table <- results_contrasts_rubin %>%
-  mutate(across(c(intervention_index, intervention_ref),
-                ~case_when(. == "Natural course" ~ "nc",
-                           . == "Continuous flu shot" ~ "1sus"))) %>%
-  filter(intervention_index == intervention_ref, wave_ref == 5) %>%
-  select(fu_year_index, intervention_index, point_est_rubin, se_rubin) %>%
-  rename(pe = point_est_rubin, se = se_rubin) %>%
-  pivot_wider(names_from = intervention_index, values_from = c(pe, se), 
-              names_glue = "{.value}_{intervention_index}") %>%
-  mutate(pe_1sus_nc = pe_1sus - pe_nc,
-         se_1sus_nc = sqrt(se_1sus^2 + se_nc^2))
+results_contrasts_year_memory_change_table <- results_contrasts_memory_change_rubin %>%
+  mutate(across(c("pe_rubin", "ll_rubin", "ul_rubin"), 
+                ~sprintf(., fmt = '%#.2f'))) %>%
+  mutate(pe_ci = paste0(pe_rubin, " (", ll_rubin, ", ", ul_rubin, ")")) %>%
+  select(survey_year_index, fu_year_index, intervention, pe_ci) %>%
+  pivot_wider(id_cols = c(survey_year_index, fu_year_index), 
+              names_from = intervention, values_from = "pe_ci",
+              names_glue = "{.value}_{intervention}") %>%
+  select(fu_year_index, pe_ci_nc, pe_ci_1sus, pe_ci_1susnc)
 
-for (type in c("nc", "1sus", "1sus_nc")){
-  results_contrasts_year_table %<>%
-    mutate(
-      !!paste0("ll_", type) := !!sym(paste0("pe_", type)) - qnorm(0.975)*!!sym(paste0("se_", type)),
-      !!paste0("ul_", type) := !!sym(paste0("pe_", type)) + qnorm(0.975)*!!sym(paste0("se_", type))) %>%
-    mutate(across(c(paste0("pe_", type), paste0("ll_", type), paste0("ul_", type)), 
-                  ~sprintf(., fmt = '%#.2f'))) %>%
-    mutate(!!paste0("pe_ci_", type) := 
-             paste0(!!sym(paste0("pe_", type)), " (", !!sym(paste0("ll_", type)), ", ", 
-                    !!sym(paste0("ul_", type)), ")"))
-}
-
-results_contrasts_year_table %>%
-  select(fu_year_index, contains("pe_ci_")) %>%
+results_contrasts_year_memory_change_table %>%
   set_colnames(c("Follow up year", 
                  "Natural course (95% CI)", "Sustained flu shot (95% CI)", 
                  "Sustained - natural course (95% CI)")) %>%

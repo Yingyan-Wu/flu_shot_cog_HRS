@@ -13,27 +13,27 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Load data ----
-load(here::here("data", "analysis_data", "data_for_cluster_20250731.RData"))
-load(here::here("data", "model_results", "lmtp_results_SL_po_2000.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52.RData"))
 waves_fu = 5:15
 
 #---- Categorize impairment ----
 ##---- Prep ----
-# Table e-3 Petersen RC, Lopez O, Armstrong MJ, et al. 
-# Practice guideline update summary: Mild cognitive impairment. Neurology. 2018;90:126–135. 
+# Table e-3 Petersen RC, Lopez O, Armstrong MJ, et al.
+# Practice guideline update summary: Mild cognitive impairment. Neurology. 2018;90:126–135.
 # 70-74: 10.1% (95% CI 7.5%–13.5%) I2 = 5.2
-# n = 2173
+# n = 2656
 hrs_age_70_74_id <- hrs_imp_r5resp_wide %>%
   filter(r5age_v2 >= 70 & r5age_v2 < 75) %>% select(HHIDPN, imp)
 with(hrs_age_70_74_id , table(imp, useNA = "ifany"))
 mci_p = 0.101
 mci_p_ll = 0.075
 mci_p_ul = 0.135
-
-# # 75–79: 14.8% (95% CI 10.1%–21.1%) I2 = 60.7
-# hrs_age_75_79_id <- hrs_imp_r5resp_wide %>%
-#   filter(r5age_v2 >= 75 & r5age_v2 < 80) %>% select(HHIDPN, imp)
-# with(hrs_age_75_79_id , table(imp, useNA = "ifany"))
+# 
+# # # 75–79: 14.8% (95% CI 10.1%–21.1%) I2 = 60.7
+# # hrs_age_75_79_id <- hrs_imp_r5resp_wide %>%
+# #   filter(r5age_v2 >= 75 & r5age_v2 < 80) %>% select(HHIDPN, imp)
+# # with(hrs_age_75_79_id , table(imp, useNA = "ifany"))
 
 results_po_70_74 <- results_po %>%
   right_join(hrs_age_70_74_id, by = c("HHIDPN", "imp"))
@@ -74,7 +74,7 @@ results_po %<>%
 #   apply(., 2, function(x) table(x, useNA = "ifany"))/nrow(results_po)
 
 # Save the results
-saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks_2000.RDS"))
+saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks_2000_ot52.RDS"))
 
 RD_RR_risk_mci <- results_po %>%
   select(type, imp, contains("_mci")) %>%
@@ -160,6 +160,18 @@ writexl::write_xlsx(RD_RR_fmt_table,
 #        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 # #---- OLD ----
+# # Table 2 Manly JJ, Jones RN, Langa KM, et al. 
+# # Estimating the Prevalence of Dementia and Mild Cognitive Impairment in the US: The 2016 Health and Retirement Study Harmonized Cognitive Assessment Protocol Project. JAMA Neurol. 2022;79(12):1242-1249. doi:10.1001/jamaneurol.2022.3543
+# 
+# # 70-74: 4% (2-6) for dementia and 20% (17-24) for MCI
+# # # n = 2656
+# hrs_age_70_74_id <- hrs_imp_r5resp_wide %>%
+#   filter(r5age_v2 >= 70 & r5age_v2 < 75) %>% select(HHIDPN, imp)
+# with(hrs_age_70_74_id , table(imp, useNA = "ifany"))
+# mci_p = 0.24
+# mci_p_ll = 0.19
+# mci_p_ul = 0.3
+
 # Attempt using normal distribution
 # #---- Read in data ----
 # results_pe_se <- readRDS(here::here("data", "model_results", 

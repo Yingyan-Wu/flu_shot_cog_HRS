@@ -64,11 +64,11 @@ scenario_tib <- expand_grid(
           interventions = "nc") %>%
   # faster things run first
   arrange(desc(interventions), waves)
+true_scenario_tib <- scenario_tib[c(111, 113, 114), ]
 
-scenario_tib <- scenario_tib[c(63, 65, 90, 110, 111, 113, 114, 115, 118), ] # 10 scenarios
-old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
-                               old_scenario_num = 
-                                 c(63, 65, 90, 110, 111, 113, 114, 115, 118))
+scenario_tib <- bind_rows(replicate(6, true_scenario_tib, simplify = FALSE))# 3 scenarios for 3 times (make sure it runs)
+# old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
+#                                old_scenario_num = rep(c(111, 113, 114), 6))
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
@@ -149,7 +149,7 @@ if (str_detect(intervention, "sus")){
 }
 
 #---- Save the lmtp object ----
-old_scenario_num <- old_new_scenario_num$old_scenario_num[scenario_num]
+# old_scenario_num <- old_new_scenario_num$old_scenario_num[scenario_num]
 save(list = case_when(intervention == "nc" ~ paste0("lmtp_nc_results_imp_", num_imp),
                       TRUE ~ paste0("y_w", wave, "_", intervention, "_", num_imp)), 
-     file = paste0(results_folder, "tmle_SL_scenario_", old_scenario_num, ".RData"))
+     file = paste0(results_folder, "tmle_SL_scenario_", scenario_num, ".RData"))
