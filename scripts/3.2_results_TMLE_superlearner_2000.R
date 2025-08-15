@@ -29,8 +29,9 @@ for (s in scenarios_res){
   load(paste0(results_folder, "tmle_SL_scenario_", s, ".RData"))
 }
 
-# PENDING: Work on imputations with full results
-full_imps <- c(2, 5:10)
+# Work on imputations with full results
+# Set up this way as previously, there were some scenarios that did not complete running on Hoffman
+full_imps <- 1:10
 full_waves <- 5:15
 
 # lmtp_tmle function returned these values for every participant
@@ -133,15 +134,6 @@ contrast_scenarios <- expand_grid(w_index = full_waves,
             (intv_index == intv_ref & w_index > w_ref)),
          ((intv_index == "1sus" & intv_ref == "nc") |
             (intv_index == intv_ref)))
-
-# Pending
-# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
-# table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# y_w13_1sus_1$weights <- y_w5_1sus_1$weights
-# y_w14_1sus_1$weights <- y_w5_1sus_1$weights
-# y_w15_1sus_1$weights <- y_w5_1sus_1$weights
 
 raw_results_contrasts <- mapply(lmtp_res_contrast, 
                                 contrast_scenarios$w_index, 
@@ -498,3 +490,12 @@ nc_observed_comp_tib %>%
 
 ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_memimp_impute.png"),
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
+
+#---- OLD ----
+# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
+# table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# y_w13_1sus_1$weights <- y_w5_1sus_1$weights
+# y_w14_1sus_1$weights <- y_w5_1sus_1$weights
+# y_w15_1sus_1$weights <- y_w5_1sus_1$weights
