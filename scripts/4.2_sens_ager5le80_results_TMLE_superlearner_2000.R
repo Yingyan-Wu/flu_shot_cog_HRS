@@ -30,8 +30,8 @@ for (s in scenarios_res){
   load(paste0(results_folder, "tmle_SL_scenario_", s, ".RData"))
 }
 
-# PENDING: Work on imputations with full results
-full_imps <- c(1:4, 6:10)
+# Work on imputations with full results
+full_imps <- 1:10
 full_waves <- 5:15
 
 # lmtp_tmle function returned these values for every participant
@@ -135,15 +135,6 @@ contrast_scenarios <- expand_grid(w_index = full_waves,
          ((intv_index == "1sus" & intv_ref == "nc") |
             (intv_index == intv_ref)))
 
-# Pending
-# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
-# table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# y_w13_1sus_1$weights <- y_w5_1sus_1$weights
-# y_w14_1sus_1$weights <- y_w5_1sus_1$weights
-# y_w15_1sus_1$weights <- y_w5_1sus_1$weights
-
 raw_results_contrasts <- mapply(lmtp_res_contrast, 
                                 contrast_scenarios$w_index, 
                                 contrast_scenarios$w_ref, 
@@ -179,7 +170,6 @@ results_contrasts_memory_change <- results_contrasts %>%
 # of `outcome_reg`
 
 load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250809.RData"))
-# PENDING
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%

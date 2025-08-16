@@ -13,7 +13,7 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(scipen = 999)
 
 #---- Load the data ----
-hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000.RDS"))
+hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52.RDS"))
 n_imp = 10
 
 #---- Preparing the data ----
@@ -77,7 +77,12 @@ with(hrs_imp_r5resp %>%
 with(hrs_imp_r5resp_wide %>%
        filter(imp == 1),
      table(r15dead, useNA = "ifany"))
+hrs_imp_r5resp_wide %>% filter(r15dead == 1) %>% with(., sum(r5wtresp))/
+sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5323711
 
+# INW
+hrs_imp_r5resp_wide %>% filter(r15inw_imp == 1) %>% with(., sum(r5wtresp))/
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5323711
 # #---- Baseline age per cohort ----
 # load(here::here("data", "analysis_data", "hrs_selected_2000.RData"))
 # hrs_imp_r5resp_wide_imp1 <- hrs_imp_r5resp_wide %>% 
@@ -466,29 +471,27 @@ writexl::write_xlsx(missing_summary_fmt,
 # Sanity check on iwstat not change for each imp
 with(hrs_imp_r5resp, table(imp, iwstat, useNA = "ifany"))
 
-# Death and loss to follow up over time
-hrs_imp_r5resp %>%
-  filter(imp == 1) %>%
-  select(HHIDPN, wave, iwstat) %>%
-  mutate(iwstat = case_when(iwstat %in% c(1, 4) ~ "In Sample",
-                            iwstat %in% c(5, 6) ~ "Death",
-                            iwstat == 7 ~ "Formally drop out from the sample")) %>%
-  ggplot() +
-  geom_bar(aes(x = wave, fill = iwstat), position = "fill") +
-  scale_fill_manual(name = "Follow up status", 
-                    values = c("#94CEF0", "#3271AE", "#B0B0B0")) +
-  geom_text(stat = "count", aes(label = after_stat(count)), 
-            position = position_fill(vjust = 0.5), size = 3)
-
-
-pivot_wider(names_from = "wave", 
-            values_from = "iwstat",
-            names_glue = "r{wave}iwstat") %>%
-  select(-HHIDPN, -r2iwstat) %>%
-  tbl_summary() %>%
-  bold_labels()
-
-
+# # Death and loss to follow up over time
+# hrs_imp_r5resp %>%
+#   filter(imp == 1) %>%
+#   select(HHIDPN, wave, iwstat) %>%
+#   mutate(iwstat = case_when(iwstat %in% c(1, 4) ~ "In Sample",
+#                             iwstat %in% c(5, 6) ~ "Death",
+#                             iwstat == 7 ~ "Formally drop out from the sample")) %>%
+#   ggplot() +
+#   geom_bar(aes(x = wave, fill = iwstat), position = "fill") +
+#   scale_fill_manual(name = "Follow up status", 
+#                     values = c("#94CEF0", "#3271AE", "#B0B0B0")) +
+#   geom_text(stat = "count", aes(label = after_stat(count)), 
+#             position = position_fill(vjust = 0.5), size = 3)
+# 
+# 
+# pivot_wider(names_from = "wave", 
+#             values_from = "iwstat",
+#             names_glue = "r{wave}iwstat") %>%
+#   select(-HHIDPN, -r2iwstat) %>%
+#   tbl_summary() %>%
+#   bold_labels()
 
 cat_imp_svy <- labelled_data %>%
   select(female, raceeth, r5mstat_2cat, r5insurance_2cat, r5smoken, 
