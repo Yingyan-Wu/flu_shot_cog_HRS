@@ -64,9 +64,9 @@ scenario_tib <- expand_grid(
           interventions = "nc") %>%
   # faster things run first
   arrange(desc(interventions), waves)
-true_scenario_tib <- scenario_tib[c(111, 113, 114), ]
+true_scenario_tib <- scenario_tib[111, ]
 
-scenario_tib <- bind_rows(replicate(6, true_scenario_tib, simplify = FALSE))# 3 scenarios for 3 times (make sure it runs)
+scenario_tib <- bind_rows(replicate(20, true_scenario_tib, simplify = FALSE))
 # old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
 #                                old_scenario_num = rep(c(111, 113, 114), 6))
 
