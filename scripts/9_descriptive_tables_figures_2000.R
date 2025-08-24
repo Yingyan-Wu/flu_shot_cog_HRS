@@ -82,7 +82,12 @@ sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5323711
 
 # INW
 hrs_imp_r5resp_wide %>% filter(r15inw_imp == 1) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5323711
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.337739
+
+# drop out
+hrs_imp_r5resp_wide %>% filter(r15iwstat == 7) %>% with(., sum(r5wtresp))/
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.1298899
+
 # #---- Baseline age per cohort ----
 # load(here::here("data", "analysis_data", "hrs_selected_2000.RData"))
 # hrs_imp_r5resp_wide_imp1 <- hrs_imp_r5resp_wide %>% 
@@ -295,7 +300,75 @@ table1_cont_weighted[5, ]
 # writexl::write_xlsx(table_flusht_weighted,
 #                     here::here("output", "tables", "table_flusht.xlsx"))
 
-#---- Flu shot per wave ----
+#---- Table X. pre imputation table 1 ----
+# PENDING
+load(here::here("data", "analysis_data", "hrs_selected_2000_ot52.RData"))
+
+labelled_data_before_imp <- hrs_selected %>%
+  mutate(max_fu_age = 
+            exec(pmax, !!!syms(paste0("r", 5:15, "age_v2")), na.rm = TRUE),
+         max_fu_time = max_fu_age - r5age_v2) %>%
+  select("r5age_v2", "female", "raceeth", "raedyrs", "r5wtresp",
+         starts_with("r5"),  
+         -contains(c("inw", "dead", "iwstat", "fu_time", "inw_imp",
+                     "memimp", "dementpimp", "expert_p", "expert_dem")), 
+         -c(r5mstat, r5adl6a, r5iadl5a, r5flusht, h5itot, h5hhres),
+         "max_fu_time") %>%
+  dplyr::mutate(across(c("female", "r5insurance_2cat", "r5smoken",
+                         "r5flone", "r5hibpe", "r5diabe", "r5cancre",
+                         "r5stroke", "r5hearte", "r5lunge", "r5adl_2cat", 
+                         "r5iadl_2cat"), 
+                       function(x) factor(x, levels = c(1, 0),
+                                          labels = c("Yes", "No")))) %>%
+  dplyr::mutate(
+    raceeth = factor(raceeth, levels = c(1, 2, 3, 4),
+                     labels = c("Non-Hispanic White", "Non-Hispanic Black", 
+                                "Hispanic", "Other")),
+    r5mstat_2cat = factor(r5mstat_2cat, levels = c(1, 0),
+                          labels = c("Married/partnered", 
+                                     "Separated/divorced/widowed/not married"))) %>%
+  labelled::set_variable_labels(
+    r5age_v2 = "Baseline age in years",
+    female = "Women",
+    raceeth = "Race and ethnicity",
+    raedyrs = "Years of education",
+    r5mstat_2cat = "Marital status",
+    r5income_pp = "Household income per person",
+    r5insurance_2cat = "Having health insurance",
+    r5doct_vis_mt5 = "≥ 5 doctor visits in the past 2 years",
+    r5mod_drinking = "Moderate drinking", 
+    r5vigorous_pa = "≥ 3 times of vigorous physical activities per week",
+    r5shlt_fair_poor = "Self-rated health: Fair/poor",
+    r5smoken = "Current smoker",
+    r5cesd = "Center for Epidemiological Studies-Depression score",
+    r5flone = "Feeling lonely",
+    r5hibpe = "Self-reported hypertension",
+    r5diabe = "Self-reported diabetes",
+    r5cancre = "Self-reported cancer",
+    r5stroke = "Self-reported stroke",
+    r5hearte = "Self-reported heart disease",
+    r5lunge = "Self-reported lung disease",
+    r5adl_2cat = "Activities of daily living: having difficulty",
+    r5iadl_2cat = "Instrumental activities of daily living: having difficulty",
+    max_fu_time = "Follow-up time in years") %>%
+  filter(!is.na(r5wtresp))
+
+data_before_imp_svy <- labelled_data_before_imp %>%
+  survey::svydesign(~ 1, data = ., weights = ~r5wtresp)
+
+table1_before_imp_weighted <- tbl_svysummary(
+  data = data_before_imp_svy,
+  statistic = list(all_continuous() ~ "{mean} ({sd})",
+                   all_categorical() ~ "{n_unweighted} ({p})"),
+  missing = "ifany") %>%
+  # digits = all_categorical() ~ 1,
+  bold_labels()
+
+table1_before_imp_weighted %>% as_flex_table()
+
+
+
+#---- Table X. Flu shot per wave ----
 # Flu shot acceptance prop at each eligible time (give a sense of natural course?)
 # All intervened proportion at each eligible time
 
