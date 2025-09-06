@@ -101,6 +101,17 @@ results_pe_se %<>%
                           type == "1sus" ~ "Continuous flu shot"))
 
 #---- Contrasts ----
+# 10 imputations for the last wave were completed on mbp
+# Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
+table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+table(round(y_w15_1sus_2$weights, 9) == round(y_w5_1sus_2$weights, 9))
+table(round(y_w15_1sus_3$weights, 9) == round(y_w5_1sus_3$weights, 9))
+for (imp in 1:10){
+  assign(paste0("y_w", 15, "_1sus_", imp),
+         get(paste0("y_w", 15, "_1sus_", imp)) %>%
+           `[[<-`("weights", get(paste0("y_w5_1sus_", imp))$weights))
+}
+
 # lmtp_contrast(y_w10_0sus_1, ref = y_w10_1sus_1)
 
 lmtp_res_contrast <- function(w_index, w_ref, intv_index, intv_ref, imp){
@@ -175,7 +186,7 @@ results_contrasts_memory_change <- results_contrasts %>%
 # hist(y_w3_1sus_1$weights)
 # hist(y_w3_1sus_3$weights)
 
-load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_20250824.RData"))
 
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
@@ -248,13 +259,13 @@ with(results_po, table(type, imp))
 
 # #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52l90.RData"))
 save(results_po,
-     file = here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52l90.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52l90.RData"))
 num_imp <- length(full_imps)
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
@@ -270,7 +281,7 @@ results_pe_se_rubin <- results_pe_se %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
 saveRDS(results_pe_se_rubin,
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52l90.RDS"))
 
 results_contrasts_rubin <- results_contrasts %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -308,11 +319,11 @@ results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
 Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
                 weights = hrs_imp_r5resp_wide$r5wtresp, na.rm= T)
 # 0.0000000000000004949333
-mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.1235858
+mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.123927
 
 ##---- Trajectory plot ----
 results_pe_se_rubin <-
-  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52.RDS"))
+  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52l90.RDS"))
 results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
@@ -449,7 +460,7 @@ results_pe_se_rubin <- results_pe_se %>%
          fu_year = survey_year - 2000)
 
 # From the lmtp no ipcw nc results
-load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_ot52.RData"))
+load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_ot52l90.RData"))
 nc_noipcw_imp1 <- nc_results %>%
   filter(imp == 1) %>%
   rename(mean_ponc = point_est,
@@ -490,12 +501,3 @@ nc_observed_comp_tib %>%
 
 ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_memimp_impute.png"),
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
-
-#---- OLD ----
-# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
-# table(round(y_w13_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# table(round(y_w14_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-# y_w13_1sus_1$weights <- y_w5_1sus_1$weights
-# y_w14_1sus_1$weights <- y_w5_1sus_1$weights
-# y_w15_1sus_1$weights <- y_w5_1sus_1$weights

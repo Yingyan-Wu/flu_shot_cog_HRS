@@ -16,7 +16,7 @@ source(here::here("scripts", "functions.R"))
 
 #---- Load the dataset ----
 # AHEAD, CODA, HRS, War babies
-load(here::here("data", "analysis_data", "hrs_selected_2000_ot52.RData"))
+load(here::here("data", "analysis_data", "hrs_selected_2000_ot52l90.RData"))
 hrs_selected %<>%
   labelled::remove_val_labels()
 
@@ -271,9 +271,9 @@ imp_pmm_10 <- mice::futuremice(impute_data, m = 10, maxit = 10,
                                n.core = 10)
 (end <- Sys.time())
 end - start
-# # m = 10, maxit = 10: 37.18209 mins parallel using 10 cores
+# # m = 10, maxit = 10: 34.53783 mins parallel using 10 cores
 
-save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_outcome_2000_ot52.RData"))
+save(imp_pmm_10, file = here::here("data", "analysis_data", "imp_pmm_10_outcome_2000_ot52l90.RData"))
 
 imp_pmm_10$loggedEvents # dropping iwstat for a bunch of tv vars, can be ignored
 complete(imp_pmm_10) %>%
@@ -288,7 +288,7 @@ plot(imp_pmm_10)
 # densityplot(imp_pmm_10, ~memimp)
 
 #---- Stack imputed dataset ----
-load(here::here("data", "analysis_data", "imp_pmm_10_outcome_2000_ot52.RData"))
+load(here::here("data", "analysis_data", "imp_pmm_10_outcome_2000_ot52l90.RData"))
 
 imp_num = 10
 imp_temp <- list()
@@ -378,6 +378,12 @@ imp_pmm_stacked %<>%
   left_join(r5memimp_mean_sd_imp, by = "imp") %>%
   mutate(memimp_stdz = (memimp - r5memimp_mean)/r5memimp_sd)
 
+# # Sanity check
+# with(imp_pmm_stacked %>% filter(wave == 5, imp == 1),
+#      Hmisc::wtd.mean(memimp_stdz, weights = r5wtresp))
+# with(imp_pmm_stacked %>% filter(wave == 5, imp == 1),
+#      Hmisc::wtd.var(memimp_stdz, weights = r5wtresp))
+
 # Remove values for flusht for waves 6, ..., 14 (wave 4 represents imputed wave 3 flu shot)
 imp_pmm_stacked %<>%
   mutate(flusht = case_when(wave %% 2 == 0 & wave != 4 ~ NA_real_,
@@ -453,7 +459,7 @@ hrs_memimp_preandpost_imp_cohort %>%
   theme_bw()
 
 #---- Save imputed data ----
-saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52.RDS"))
+saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52l90.RDS"))
 
 #---- OLD ----
 # ##---- Check the distribution of imputed memimp ----

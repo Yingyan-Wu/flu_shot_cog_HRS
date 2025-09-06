@@ -593,6 +593,19 @@ with(flusht_wide, table(num_flusht_alt, useNA = "ifany"))
 
 # Flu shot wide 
 
+#---- From the same household ----
+hrs %<>%
+  mutate(
+    # PN: last 3 digits of HHIDPN
+    pn = gsub("^(\\d+)(\\d{3})$", "\\2", HHIDPN),
+    # HHID: anything in HHIDPN besides pn
+    hhid = gsub("^(\\d+)(\\d{3})$", "\\1", HHIDPN))
+
+
+# Check for hhidpn and hhid, pn
+hrs %>% select(HHIDPN, hhid, pn) %>% view()
+length(unique(hrs$hhid))
+
 #---- Dropping people ----
 ##---- 1. Dropping those who still missing age at e every wave ----
 table(hrs$female, useNA = "ifany")
@@ -616,7 +629,7 @@ hrs_filtered %<>% filter(HHIDPN %in% r5_resp_r4insamp_id)
 # n=21918
 # with(hrs_filtered, table(racohbyr, useNA = "ifany"))
 
-##---- 3. Filter on participants aged 52+ for 2000 interview ----
+##---- 3. Filter on participants aged [52, 90) for 2000 interview ----
 # Since they need to be eligible for both 1998 and 2000 interview
 # people aged < 52 in 2000, these people were in the sample since they are spouses
 
@@ -628,9 +641,11 @@ hrs_filtered %>% filter(r5age_v2 >= 52, r5age_v2 < 54) %>% with(., sum(r5wtresp,
 
 hrs_filtered %>%
   filter(r5age_v2 < 52) %>% nrow() # n=941 (age younger than 52)
+hrs_filtered %>%
+  filter(r5age_v2 >= 90) %>% nrow() # n=471 (age older than 90)
 
 hrs_filtered %<>%
-  filter(r5age_v2 >= 52) #n=20977
+  filter(r5age_v2 >= 52 & r5age_v2 < 90) #n=20506
 
 ##---- 4. filter on participants not living in nursing home for 2000 ----
 # Filter on participants not living in nursing home for 2000 
@@ -654,10 +669,10 @@ hrs_filtered %<>%
           is.na(r1nhmliv) ~ NA_real_, 
         TRUE ~ 0))# not living in nursing home
 
-with(hrs_filtered, table(r5nursing_home_v2, useNA = "ifany")) # n=539
+with(hrs_filtered, table(r5nursing_home_v2, useNA = "ifany")) # n=346
 
 hrs_filtered %<>%
-  filter(r5nursing_home_v2 != 1) # n = 20438
+  filter(r5nursing_home_v2 != 1) # n = 20091
 
 
 #---- Select the variables ----
@@ -686,7 +701,7 @@ hrs_selected <- hrs_filtered %>%
 
 #---- Save the data ----
 saveRDS(hrs, here::here("data", "analysis_data", "hrs_cleaned.rds"))
-save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected_2000_ot52.RData"))
+save(hrs_filtered, hrs_selected, file = here::here("data", "analysis_data", "hrs_selected_2000_ot52l90.RData"))
 
 #---- OLD ----
 ##---- 2. Filter on participants eligible for 1996 interview ----

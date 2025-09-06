@@ -169,7 +169,7 @@ results_contrasts_memory_change <- results_contrasts %>%
 # Theta was calculated by weighted mean of potential outcomes from the first column
 # of `outcome_reg`
 
-load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250809.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250824.RData"))
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
@@ -225,13 +225,13 @@ with(results_po, table(type, imp))
 
 #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_ot52.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_ot52l90.RData"))
 save(results_po, 
-     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_ager5le80_2000_ot52.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_ager5le80_2000_ot52l90.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_ot52.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_ot52l90.RData"))
 results_pe_se_sens <- results_pe_se
 results_contrasts_sens <- results_contrasts
 results_contrasts_memory_change_sens <- results_contrasts_memory_change
@@ -251,7 +251,7 @@ results_pe_se_rubin_sens <- results_pe_se_sens %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
 saveRDS(results_pe_se_rubin_sens, 
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_ager5le80_2000_ot52.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_ager5le80_2000_ot52l90.RDS"))
 
 results_contrasts_rubin_sens <- results_contrasts_sens %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -314,7 +314,7 @@ results_pe_se_rubin_sens %>%
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "sens_ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_ot52.png"), 
+ggsave(here::here("output", "figures", "sens_ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_ot52l90.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----

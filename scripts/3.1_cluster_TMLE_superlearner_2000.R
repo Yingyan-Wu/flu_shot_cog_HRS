@@ -44,7 +44,7 @@ data_folder <- paste0(project_folder, "data/")
 results_folder <- paste0(project_folder, "TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250809.RData"))
+load(paste0(data_folder, "data_for_cluster_20250824.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -73,6 +73,9 @@ if (scenario_num > nrow(scenario_tib)) {
   scenario_num <- 1
 }
 
+# # Test
+# scenario_num = 21
+
 # print values just to make sure:
 print(scenario_num)
 scenario <- scenario_tib[scenario_num, ]
@@ -88,7 +91,7 @@ print(intervention)
 print(num_imp)
 
 dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp)
-nrow(dt_imp_wide_imp1) # 20438
+nrow(dt_imp_wide_imp1) # 20091
 
 #---- Analysis ----
 if (intervention == "nc"){
@@ -130,7 +133,7 @@ if (str_detect(intervention, "sus")){
               learners_outcome = sl_lib,
               learners_trt = sl_lib)
   }
-  (start_sus <- Sys.time())
+  print(start_sus <- Sys.time())
   plan(multisession, workers = 5)
   set.seed(num_imp)
   (trt <- case_when(intervention == "1sus" ~ 1,
@@ -139,7 +142,7 @@ if (str_detect(intervention, "sus")){
   plan(sequential)
   
   assign(paste0("y_w", wave, "_", intervention, "_", num_imp), temp)
-  (end_sus <- Sys.time())
+  print(end_sus <- Sys.time())
   end_sus - start_sus
 }
 

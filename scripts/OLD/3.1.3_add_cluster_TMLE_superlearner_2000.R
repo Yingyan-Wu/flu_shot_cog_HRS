@@ -41,10 +41,10 @@ library(earth)
 # Paths cluster
 project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
 data_folder <- paste0(project_folder, "data/")
-results_folder <- paste0(project_folder, "add_TMLE_SuperLearner/")
+results_folder <- paste0(project_folder, "add2_TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250809.RData"))
+load(paste0(data_folder, "data_for_cluster_20250824.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -64,11 +64,12 @@ scenario_tib <- expand_grid(
           interventions = "nc") %>%
   # faster things run first
   arrange(desc(interventions), waves)
-true_scenario_tib <- scenario_tib[111, ]
+uncompleted_scenarios <- c(111, 112, 114:120)
+true_scenario_tib <- scenario_tib[uncompleted_scenarios, ]
 
 scenario_tib <- bind_rows(replicate(20, true_scenario_tib, simplify = FALSE))
-# old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
-#                                old_scenario_num = rep(c(111, 113, 114), 6))
+old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
+                               old_scenario_num = rep(uncompleted_scenarios, 20))
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index

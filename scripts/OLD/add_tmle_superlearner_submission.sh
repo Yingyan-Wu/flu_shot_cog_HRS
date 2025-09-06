@@ -11,7 +11,7 @@
 #$ -m bea #sends you an email (b) when the job begins (e) when job ends (a) when job is aborted (error)
 # submit array job:
 # run an array of n jobs; this corresponds to $SGE_TASK_ID, nrow of scenario_tib
-#$ -t 1-20:1
+#$ -t 1-180:1
 ## 
 
 # load the job environment:

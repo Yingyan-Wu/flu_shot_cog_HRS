@@ -13,7 +13,7 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(scipen = 999)
 
 #---- Load the data ----
-hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52.RDS"))
+hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52l90.RDS"))
 
 #---- Preparing the data ----
 # Sanity check
@@ -163,15 +163,16 @@ hrs_imp_r5resp_wide_ager5le80 <- hrs_imp_r5resp_wide %>%
 with(hrs_imp_r5resp_wide_ager5le80, table(imp, useNA = "ifany"))
 
 #---- Save the elements for the Super Learner ----
+# 0824: restrict to age [52, 90) at baseline
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
+     file = here::here("data", "analysis_data", "data_for_cluster_20250824.RData"))
 
 # Save sens r5age <= 80 data with non-specific dataset name
+# r5age [52, 80]
 hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_ager5le80
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250809.RData"))
+     file = here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250824.RData"))
 # Descriptives
 #n=17655
-sum(hrs_imp_r5resp_wide$r5wtresp)/10 # 63967482
-mean(hrs_imp_r5resp_wide$r5age_v2) # 63.40
-
+sum(hrs_imp_r5resp_wide$r5wtresp)/10 # 63930793
+mean(hrs_imp_r5resp_wide$r5age_v2) # 65.39367

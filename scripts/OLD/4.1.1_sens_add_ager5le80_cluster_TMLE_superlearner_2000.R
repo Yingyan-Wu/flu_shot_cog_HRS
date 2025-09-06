@@ -42,10 +42,10 @@ library(earth)
 # Paths cluster
 project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
 data_folder <- paste0(project_folder, "data/")
-results_folder <- paste0(project_folder, "TMLE_SuperLearner_sens_ager5le80/")
+results_folder <- paste0(project_folder, "add_TMLE_SuperLearner_sens_ager5le80/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_ager5le80_20250731.RData"))
+load(paste0(data_folder, "data_for_cluster_ager5le80_20250824.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -62,13 +62,16 @@ scenario_tib <- expand_grid(
   interventions = "1sus") %>% # "0sus")) %>%
   add_row(imp = 1:n_imp,
           waves = NA,
-          interventions = "nc")
-scenario_tib <- scenario_tib[c(10, 11, 19, 21, 22, 32, 33, 43, 44, 54, 55, 65, 
-                               66, 75, 76, 77, 87, 88, 98,  99, 109, 110), ]
+          interventions = "nc") %>%
+  # faster things run first
+  arrange(desc(interventions), waves)
+
+uncompleted_scenarios <- c(86, 87, 88, 110, 111, 114, 116, 117, 118, 119, 120)
+true_scenario_tib <- scenario_tib[uncompleted_scenarios, ]
+
+scenario_tib <- bind_rows(replicate(10, true_scenario_tib, simplify = FALSE))
 old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
-                               old_scenario_num = 
-                                 c(10, 11, 19, 21, 22, 32, 33, 43, 44, 54, 55, 65, 
-                                   66, 75, 76, 77, 87, 88, 98,  99, 109, 110))
+                               old_scenario_num = rep(uncompleted_scenarios, 10))
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
@@ -92,7 +95,7 @@ print(i)
 print(intervention)
 print(num_imp)
 
-dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp) # 18788 obs
+dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp) # 17655 obs
 nrow(dt_imp_wide_imp1)
 
 #---- Analysis ----
@@ -149,7 +152,7 @@ if (str_detect(intervention, "sus")){
 }
 
 #---- Save the lmtp object ----
-old_scenario_num <- old_new_scenario_num$old_scenario_num[scenario_num]
+# old_scenario_num <- old_new_scenario_num$old_scenario_num[scenario_num]
 save(list = case_when(intervention == "nc" ~ paste0("lmtp_nc_results_imp_", num_imp),
                       TRUE ~ paste0("y_w", wave, "_", intervention, "_", num_imp)), 
-     file = paste0(results_folder, "tmle_SL_scenario_", old_scenario_num, ".RData"))
+     file = paste0(results_folder, "tmle_SL_scenario_", scenario_num, ".RData"))

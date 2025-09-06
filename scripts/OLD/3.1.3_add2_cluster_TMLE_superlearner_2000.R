@@ -41,10 +41,10 @@ library(earth)
 # Paths cluster
 project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
 data_folder <- paste0(project_folder, "data/")
-results_folder <- paste0(project_folder, "add2_TMLE_SuperLearner/")
+results_folder <- paste0(project_folder, "add3_TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250809.RData"))
+load(paste0(data_folder, "data_for_cluster_20250824.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -64,11 +64,12 @@ scenario_tib <- expand_grid(
           interventions = "nc") %>%
   # faster things run first
   arrange(desc(interventions), waves)
+uncompleted_scenarios <- c(111, 112, 114:120)
+true_scenario_tib <- scenario_tib[uncompleted_scenarios, ]
 
-scenario_tib <- scenario_tib[c(111, 113, 114, 115, 118), ] # 5 scenarios
+scenario_tib <- bind_rows(replicate(20, true_scenario_tib, simplify = FALSE))
 old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
-                               old_scenario_num = 
-                                 c(111, 113, 114, 115, 118))
+                               old_scenario_num = rep(uncompleted_scenarios, 20))
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
@@ -149,7 +150,7 @@ if (str_detect(intervention, "sus")){
 }
 
 #---- Save the lmtp object ----
-old_scenario_num <- old_new_scenario_num$old_scenario_num[scenario_num]
+# old_scenario_num <- old_new_scenario_num$old_scenario_num[scenario_num]
 save(list = case_when(intervention == "nc" ~ paste0("lmtp_nc_results_imp_", num_imp),
                       TRUE ~ paste0("y_w", wave, "_", intervention, "_", num_imp)), 
-     file = paste0(results_folder, "tmle_SL_scenario_", old_scenario_num, ".RData"))
+     file = paste0(results_folder, "tmle_SL_scenario_", scenario_num, ".RData"))

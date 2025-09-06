@@ -18,8 +18,8 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Load data ----
-load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
-load(here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_20250824.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52l90.RData"))
 waves_fu = 5:15
 
 #---- Load HCAP data for weighted age distribution at 2016 ----
@@ -127,7 +127,7 @@ results_po %<>%
 table(results_po$po_w13_mci_pe)
 
 # Save the results
-saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks_2000_ot52.RDS"))
+saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks_2000_ot52l90.RDS"))
 
 RD_RR_risk_mci <- results_po %>%
   select(type, imp, contains("_mci")) %>%
@@ -171,7 +171,7 @@ RD_RR_fmt_table <- RD_RR_risk_mci %>%
 
 writexl::write_xlsx(RD_RR_fmt_table, 
                     here::here("output", "tables", 
-                               "lmtp_RD_RR_SL_2000_memimp_impute_ot52.xlsx"))
+                               "lmtp_RD_RR_SL_2000_memimp_impute_ot52l90.xlsx"))
 
 # #---- Figure ----
 # RD_RR_forplot <- RD_RR_risk_mci %>%
