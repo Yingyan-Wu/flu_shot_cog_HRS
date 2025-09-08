@@ -13,7 +13,7 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(scipen = 999)
 
 #---- Load the data ----
-hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52.RDS"))
+hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52l90.RDS"))
 n_imp = 10
 
 #---- Preparing the data ----
@@ -78,15 +78,15 @@ with(hrs_imp_r5resp_wide %>%
        filter(imp == 1),
      table(r15dead, useNA = "ifany"))
 hrs_imp_r5resp_wide %>% filter(r15dead == 1) %>% with(., sum(r5wtresp))/
-sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5323711
+sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5265133
 
 # INW
 hrs_imp_r5resp_wide %>% filter(r15inw_imp == 1) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.337739
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.3425122
 
 # drop out
 hrs_imp_r5resp_wide %>% filter(r15iwstat == 7) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.1298899
+  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.1309745
 
 # #---- Baseline age per cohort ----
 # load(here::here("data", "analysis_data", "hrs_selected_2000.RData"))
@@ -290,7 +290,7 @@ table1_weighted <- rbind(table1_cont_weighted[1, ], # Baseline age
                          table1_cont_weighted[c(4, 6), ] # depression & follow up
 ) 
 writexl::write_xlsx(table1_weighted, 
-                    here::here("output", "tables", "table1_imp_weighted_stratified_2000.xlsx"))
+                    here::here("output", "tables", "table1_imp_weighted_stratified_2000_ot52l90.xlsx"))
 
 ##---- Flu shot descriptive table ----
 # Always taker, some flu shot, no flu shot
@@ -434,7 +434,7 @@ flusht_perwave_sus_tbl <- flusht_per_wave %>%
             by = join_by(wave, n_sample_size))
 
 writexl::write_xlsx(flusht_perwave_sus_tbl,
-                    here::here("output", "tables", "table_flusht_per_wave_2000.xlsx"))
+                    here::here("output", "tables", "table_flusht_per_wave_2000_ot52l90.xlsx"))
 
 
 
@@ -450,7 +450,7 @@ flusht_fortraj <- hrs_imp_r5resp %>%
               names_glue = "r{wave}flusht") %>%
   select(paste0("r", seq(5, 15, by = 2), "flusht")) %>%
   group_by(across(all_of(paste0("r", seq(5, 15, by = 2), "flusht")))) %>%
-  summarize(count = round(n()/n_imp)) %>% ungroup() %>%
+  dplyr::summarize(count = round(n()/n_imp)) %>% ungroup() %>%
   mutate(across(paste0("r", seq(5, 15, by = 2), "flusht"), 
                 ~case_when(. == 0 ~ "0",
                            . == 1 ~ "1",
