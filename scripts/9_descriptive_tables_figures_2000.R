@@ -439,7 +439,6 @@ writexl::write_xlsx(flusht_perwave_sus_tbl,
 
 
 #---- Fig 1. flu shot descriptive ----
-#---- Trajectory plot ----
 with(hrs_imp_r5resp %>% filter(!wave %in% seq(2, 14, by = 2)), 
      table(flusht, iwstat, useNA = "ifany"))
 
