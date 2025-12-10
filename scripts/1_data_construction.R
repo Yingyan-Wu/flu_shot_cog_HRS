@@ -106,39 +106,39 @@ memimp %<>%
 colnames(memimp)
 memimp %>% select(contains("dementpimp")) %>% apply(., 2, mean, na.rm = T)
 
-demprob <- read_sas(here::here("data", "raw_data", "power_hrsdementia",
-                               "hrsdementia_2024_1217.sas7bdat")) %>%
-  unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
-  mutate_at("HHIDPN", as.numeric) %>%
-  # years from 2000-2016 corresponding to waves 5 - 13
-  # (seq(2000, 2016, by = 2) - 2000)/2 + 5
-  mutate(wave = (as.numeric(HRS_year) - 2000)/2 + 5)
-
-# Sanity check
-with(demprob, table(HRS_year, wave, useNA = "ifany"))
-
-# Include only Expert algorithm variables
-demprob_wide_expert <- demprob %>%
-  mutate(wave = (as.numeric(HRS_year) - 2000)/2 + 5) %>%
-  select(HHIDPN, wave, expert_p, expert_dem) %>%
-  pivot_wider(names_from = wave, values_from = c(expert_p, expert_dem),
-              names_glue = "r{wave}{.value}")
-
-with(demprob %>%
-       arrange(HHIDPN, HRS_year) %>%
-       group_by(HHIDPN) %>%
-       slice_tail(), table(hurd_dem))
-
-with(demprob %>%
-       arrange(HHIDPN, HRS_year) %>%
-       group_by(HHIDPN) %>%
-       slice_tail(), table(hurd_dem))
-
-demprob_wide_expert %>% select(contains("expert_p")) %>% apply(., 2, mean, na.rm = T)
+# demprob <- read_sas(here::here("data", "raw_data", "power_hrsdementia",
+#                                "hrsdementia_2024_1217.sas7bdat")) %>%
+#   unite("HHIDPN", c("HHID", "PN"), sep = "", remove = TRUE) %>%
+#   mutate_at("HHIDPN", as.numeric) %>%
+#   # years from 2000-2016 corresponding to waves 5 - 13
+#   # (seq(2000, 2016, by = 2) - 2000)/2 + 5
+#   mutate(wave = (as.numeric(HRS_year) - 2000)/2 + 5)
+# 
+# # Sanity check
+# with(demprob, table(HRS_year, wave, useNA = "ifany"))
+# 
+# # Include only Expert algorithm variables
+# demprob_wide_expert <- demprob %>%
+#   mutate(wave = (as.numeric(HRS_year) - 2000)/2 + 5) %>%
+#   select(HHIDPN, wave, expert_p, expert_dem) %>%
+#   pivot_wider(names_from = wave, values_from = c(expert_p, expert_dem),
+#               names_glue = "r{wave}{.value}")
+# 
+# with(demprob %>%
+#        arrange(HHIDPN, HRS_year) %>%
+#        group_by(HHIDPN) %>%
+#        slice_tail(), table(hurd_dem))
+# 
+# with(demprob %>%
+#        arrange(HHIDPN, HRS_year) %>%
+#        group_by(HHIDPN) %>%
+#        slice_tail(), table(hurd_dem))
+# 
+# demprob_wide_expert %>% select(contains("expert_p")) %>% apply(., 2, mean, na.rm = T)
 
 ##---- merging data ----
-hrs <- RAND %>% left_join(memimp, by = "HHIDPN") %>% 
-  left_join(demprob_wide_expert, by = "HHIDPN")
+hrs <- RAND %>% left_join(memimp, by = "HHIDPN")
+  # left_join(demprob_wide_expert, by = "HHIDPN")
 
 #---- in interview ----
 hrs %<>%
@@ -694,7 +694,7 @@ hrs_selected <- hrs_filtered %>%
          contains(c("hibpe", "diabe", "cancre", "stroke", "hearte", "lunge")),
          contains(c("adl", "iadl")),
          contains("flusht"),
-         contains(c("memimp", "dementpimp", "expert_p", "expert_dem"))
+         contains(c("memimp", "dementpimp")) # "expert_p", "expert_dem"))
   ) %>%
   # Change the names of household variable (h) to individual variable (r)
   rename_at(vars(contains(c("hhres", "itot"))), ~str_replace(.x, "h", "r")) # This will only replace the first h letter
