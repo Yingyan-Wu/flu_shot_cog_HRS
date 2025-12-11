@@ -162,7 +162,7 @@ hrs_imp_r5resp_wide_ager5le80 <- hrs_imp_r5resp_wide %>%
 # Sanity check
 with(hrs_imp_r5resp_wide_ager5le80, table(imp, useNA = "ifany"))
 
-#---- Save the elements for the Super Learner ----
+#---- Save the elements for TMLE ----
 # 0824: restrict to age [52, 90) at baseline
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_20250824.RData"))
