@@ -300,24 +300,45 @@ table1_cont_weighted[5, ]
 # writexl::write_xlsx(table_flusht_weighted,
 #                     here::here("output", "tables", "table_flusht.xlsx"))
 
-#---- Table X. pre imputation table 1 ----
-# PENDING
-load(here::here("data", "analysis_data", "hrs_selected_2000_ot52.RData"))
+#---- eTable. pre imputation table 1 ----
+load(here::here("data", "analysis_data", "hrs_selected_2000_ot52l90.RData"))
+
+hrs_selected_fu_time <- hrs_selected %>%
+  select(HHIDPN, contains(c("iwstat", "age_v2"))) %>%
+  pivot_longer(cols = -HHIDPN,
+               names_to = c("wave", ".value"),
+               values_to = c("iwstat", "age_v2"),
+               names_pattern = "r(\\d+)(.*)") %>%
+  left_join(hrs_selected %>% select(HHIDPN, r5age_v2), by = "HHIDPN") %>%
+  mutate(fu_time = case_when(iwstat %in% c(1, 4) ~ age_v2 - r5age_v2,
+                               iwstat %in% c(5, 6, 7, 9) ~ NA_real_)) %>%
+  select(-r5age_v2) %>%
+  pivot_wider(names_from = "wave",
+              values_from = c("iwstat", "age_v2", "fu_time"),
+              names_glue = "r{wave}{.value}") %>%
+  mutate(max_fu_time = 
+           exec(pmax, !!!syms(paste0("r", 5:15, "fu_time")), na.rm = TRUE)) %>%
+  select(HHIDPN, max_fu_time)
+# Sanity check
+with(hrs_selected_fu_time, summary(max_fu_time))
+hrs_selected <- hrs_selected %>%
+  left_join(hrs_selected_fu_time, by = "HHIDPN")
 
 labelled_data_before_imp <- hrs_selected %>%
-  mutate(max_fu_age = 
-            exec(pmax, !!!syms(paste0("r", 5:15, "age_v2")), na.rm = TRUE),
-         max_fu_time = max_fu_age - r5age_v2) %>%
-  select("r5age_v2", "female", "raceeth", "raedyrs", "r5wtresp",
-         starts_with("r5"),  
-         -contains(c("inw", "dead", "iwstat", "fu_time", "inw_imp",
-                     "memimp", "dementpimp", "expert_p", "expert_dem")), 
-         -c(r5mstat, r5adl6a, r5iadl5a, r5flusht, h5itot, h5hhres),
-         "max_fu_time") %>%
+  select(r5age_v2, female, raceeth, raedyrs, 
+         r5mstat_2cat, r5income_pp, r5insurance_2cat, r5doct_vis_mt5,
+         # Health behaviors
+         r5smoken, r5mod_drinking, r5vigorous_pa,
+         r5flone,
+         # Health conditions
+         r5shlt_fair_poor,
+         r5hibpe, r5diabe, r5cancre, r5stroke, r5hearte, r5lunge,
+         # ADL and IADLs
+         r5adl_2cat, r5iadl_2cat, r5cesd, max_fu_time, r5wtresp) %>%
   dplyr::mutate(across(c("female", "r5insurance_2cat", "r5smoken",
                          "r5flone", "r5hibpe", "r5diabe", "r5cancre",
                          "r5stroke", "r5hearte", "r5lunge", "r5adl_2cat", 
-                         "r5iadl_2cat"), 
+                         "r5iadl_2cat", "r5doct_vis_mt5", "r5vigorous_pa"), 
                        function(x) factor(x, levels = c(1, 0),
                                           labels = c("Yes", "No")))) %>%
   dplyr::mutate(
@@ -326,17 +347,18 @@ labelled_data_before_imp <- hrs_selected %>%
                                 "Hispanic", "Other")),
     r5mstat_2cat = factor(r5mstat_2cat, levels = c(1, 0),
                           labels = c("Married/partnered", 
-                                     "Separated/divorced/widowed/not married"))) %>%
+                                     "Separated/divorced/widowed/not married")),
+    raedyrs = as.numeric(raedyrs)) %>%
   labelled::set_variable_labels(
     r5age_v2 = "Baseline age in years",
     female = "Women",
     raceeth = "Race and ethnicity",
     raedyrs = "Years of education",
-    r5mstat_2cat = "Marital status",
+    r5mstat_2cat = "Marital/partnered",
     r5income_pp = "Household income per person",
     r5insurance_2cat = "Having health insurance",
     r5doct_vis_mt5 = "≥ 5 doctor visits in the past 2 years",
-    r5mod_drinking = "Moderate drinking", 
+    r5mod_drinking = "No to moderate alcohol use", 
     r5vigorous_pa = "≥ 3 times of vigorous physical activities per week",
     r5shlt_fair_poor = "Self-rated health: Fair/poor",
     r5smoken = "Current smoker",
@@ -358,17 +380,23 @@ data_before_imp_svy <- labelled_data_before_imp %>%
 
 table1_before_imp_weighted <- tbl_svysummary(
   data = data_before_imp_svy,
+  type = list(r5cesd ~ "continuous"),
   statistic = list(all_continuous() ~ "{mean} ({sd})",
                    all_categorical() ~ "{n_unweighted} ({p})"),
-  missing = "ifany") %>%
-  # digits = all_categorical() ~ 1,
+  missing = "no",
+  digits = list(all_continuous() ~ 1,
+                all_categorical() ~ c(0, 1))) %>%
   bold_labels()
 
 table1_before_imp_weighted %>% as_flex_table()
 
+table1_before_imp_weighted %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = here::here("output", "tables",
+                                            "table1_before_imp.docx"))
 
 
-#---- Table X. Flu shot per wave ----
+#---- eTable. Flu shot per wave ----
 # Flu shot acceptance prop at each eligible time (give a sense of natural course?)
 # All intervened proportion at each eligible time
 
@@ -539,46 +567,26 @@ missing_summary_fmt <- missing_summary %>%
 writexl::write_xlsx(missing_summary_fmt,
                     here::here("output", "tables", "missing_summary_2000_fmt.xlsx"))
 
-#---- Table S: death/ loss to follow up over time ----
+#---- death/ loss to follow up over time ----
 # Sanity check on iwstat not change for each imp
 with(hrs_imp_r5resp, table(imp, iwstat, useNA = "ifany"))
 
-# # Death and loss to follow up over time
-# hrs_imp_r5resp %>%
-#   filter(imp == 1) %>%
-#   select(HHIDPN, wave, iwstat) %>%
-#   mutate(iwstat = case_when(iwstat %in% c(1, 4) ~ "In Sample",
-#                             iwstat %in% c(5, 6) ~ "Death",
-#                             iwstat == 7 ~ "Formally drop out from the sample")) %>%
-#   ggplot() +
-#   geom_bar(aes(x = wave, fill = iwstat), position = "fill") +
-#   scale_fill_manual(name = "Follow up status", 
-#                     values = c("#94CEF0", "#3271AE", "#B0B0B0")) +
-#   geom_text(stat = "count", aes(label = after_stat(count)), 
-#             position = position_fill(vjust = 0.5), size = 3)
-# 
-# 
-# pivot_wider(names_from = "wave", 
-#             values_from = "iwstat",
-#             names_glue = "r{wave}iwstat") %>%
-#   select(-HHIDPN, -r2iwstat) %>%
-#   tbl_summary() %>%
-#   bold_labels()
-
-cat_imp_svy <- labelled_data %>%
-  select(female, raceeth, r5mstat_2cat, r5insurance_2cat, r5smoken, 
-         r5flone, r5hibpe, r5diabe, r5cancre, r5stroke, r5hearte, r5lunge,
-         r5adl_2cat, r5iadl_2cat, flusht_cat, flusht_taker,
-         # baseline weights
-         r5wtresp) %>%
-  survey::svydesign(~ 1, data = ., weights = ~r5wtresp)
-
-temp_cat_weighted <- tbl_svysummary(
-  data = cat_imp_svy,
-  statistic = list(all_categorical() ~ c("{n_unweighted} {p}")), # For latter splitting
-  digits = all_categorical() ~ 1,
-  by = "flusht_cat") %>%
-  add_overall() %>%
-  bold_labels()
-
-temp_cat_weighted %>% as_flex_table()
+# Death and loss to follow up over time
+hrs_imp_r5resp %>%
+  filter(imp == 1) %>%
+  select(HHIDPN, wave, iwstat) %>%
+  mutate(iwstat = case_when(iwstat %in% c(1, 4) ~ "In Sample",
+                            iwstat %in% c(5, 6) ~ "Death",
+                            iwstat == 7 ~ "Formally drop out from the sample")) %>%
+  ggplot() +
+  geom_bar(aes(x = wave, fill = iwstat), position = "fill") +
+  scale_fill_manual(name = "Follow up status",
+                    values = c("Dark Grey", "light Grey", "light blue")) +
+  # Add label to each component
+  geom_text(stat = 'count', aes(
+    x = wave,
+                                 label = scales::percent(..count../tapply(..count.., ..x.., sum)[..x..]),
+                                 group = iwstat),
+            position = position_fill(vjust = 0.5), size = 3) +
+  labs(x = "Follow-up waves", y = "Proportion") +
+  theme_bw() 
