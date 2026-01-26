@@ -450,7 +450,7 @@ hrs_memimp_preandpost_imp_cohort %>%
                     ymax = mean_memimp + 1.96*se_memimp),
                 width = 0.2) +
   # scale_y_continuous(limits = c(0.2, 1.3)) +
-  scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
+  scale_x_continuous(breaks = seq(1996, 2022, by = 2)) +
   # scale_linetype_manual(values = c("solid", "dashed"), name = "cohort", labels = c("AHEAD", "HRS")) +
   labs(title = "Mean memory score over time",
        x = "year",
