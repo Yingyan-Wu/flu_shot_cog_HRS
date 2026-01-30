@@ -177,6 +177,27 @@ for (w in number_waves){
 # Check cross wave for unknown status (iwstat = 9)
 hrs %>% select(contains("iwstat")) %>%
   apply(., 2, table, useNA = "ifany")
+# Check if there's anyone got a 7 (dropped out from the sample) and then come back
+# as 1 or 4 in iwstat
+for (wave in 5:16){
+  print(wave)
+  print(with(hrs, table(get(paste0("r", wave - 1, "iwstat")), 
+                        get(paste0("r", wave, "iwstat")), useNA = "ifany")))
+}
+
+# There's one participant
+# Change 7 to 4 as this participant is not actually dropping out
+hrs %>% filter(r9iwstat == 7, r10iwstat == 1) %>%
+  select(HHIDPN, contains("iwstat"), contains("memimp")) %>% view()
+
+hrs_id_fix <- hrs %>%
+  filter(r9iwstat == 7, r10iwstat == 1) %>%
+  pull(HHIDPN)
+hrs %<>%
+  mutate(r9iwstat = case_when(HHIDPN %in% hrs_id_fix ~ 4,
+                              TRUE ~ r9iwstat),
+         r8iwstat = case_when(HHIDPN %in% hrs_id_fix ~ 4,
+                              TRUE ~ r8iwstat))
 
 #---- Death ----
 # Create death indicator by wave
@@ -386,11 +407,6 @@ for (wave in 2:16){
 hrs %>%
   select(contains("doct_vis_mt5")) %>%
   apply(., 2, table, useNA = "ifany")
-for (wave in 2:16){
-  print(with(hrs %>% filter(is.na(!!sym(paste0("r", wave, "doct_vis_mt5")))), 
-             table(!!sym(paste0("r", wave, "doctor")), 
-                   !!sym(paste0("r", wave, "doctim")), useNA = "ifany")))
-}
 
 with(hrs %>% filter(is.na(r16doct_vis_mt5)), 
      table(r16doctor, r16doctim, useNA = "ifany"))
@@ -675,7 +691,7 @@ hrs_filtered %<>%
           is.na(r1nhmliv) ~ NA_real_, 
         TRUE ~ 0))# not living in nursing home
 
-with(hrs_filtered, table(r5nursing_home_v2, useNA = "ifany")) # n=346
+with(hrs_filtered, table(r5nursing_home_v2, useNA = "ifany")) # n=346 nursing homes + 69 NAs
 
 hrs_filtered %<>%
   filter(r5nursing_home_v2 != 1) # n = 20092
