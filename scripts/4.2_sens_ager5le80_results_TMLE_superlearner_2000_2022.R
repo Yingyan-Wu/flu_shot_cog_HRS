@@ -15,9 +15,9 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Read in the lmtp objects ----
-total_scenarios <- 1:120
+total_scenarios <- 1:130
 num_imp <- 10
-waves_fu <- 5:15
+waves_fu <- 5:16
 results_folder <- here::here("data", "model_results", "TMLE_SuperLearner_sens_ager5le80/")
 results_files <- list.files(path = results_folder, full.names = TRUE)
 scenarios_res <- gsub(".*_(.*)\\..*", "\\1", results_files) %>% as.numeric() %>%
@@ -32,7 +32,7 @@ for (s in scenarios_res){
 
 # Work on imputations with full results
 full_imps <- 1:10
-full_waves <- 5:15
+full_waves <- 5:16
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -169,7 +169,7 @@ results_contrasts_memory_change <- results_contrasts %>%
 # Theta was calculated by weighted mean of potential outcomes from the first column
 # of `outcome_reg`
 
-load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_20250824.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_2000_2022.RData"))
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
@@ -225,13 +225,13 @@ with(results_po, table(type, imp))
 
 #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_2022_ot52l90.RData"))
 save(results_po, 
-     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_ager5le80_2000_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_ager5le80_2000_2022_ot52l90.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_ot52l90.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_ager5le80_2000_2022_ot52l90.RData"))
 results_pe_se_sens <- results_pe_se
 results_contrasts_sens <- results_contrasts
 results_contrasts_memory_change_sens <- results_contrasts_memory_change
@@ -251,7 +251,7 @@ results_pe_se_rubin_sens <- results_pe_se_sens %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
 saveRDS(results_pe_se_rubin_sens, 
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_ager5le80_2000_ot52l90.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_ager5le80_2000_2022_ot52l90.RDS"))
 
 results_contrasts_rubin_sens <- results_contrasts_sens %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -298,7 +298,7 @@ results_pe_se_rubin_sens %>%
                 position = position_dodge((width = 1)),
                 width = 0.8) +
   scale_y_continuous(breaks = seq(-3, 0.5, by = 0.2)) +
-  scale_x_continuous(breaks = seq(0, 20, by = 2)) +
+  scale_x_continuous(breaks = seq(0, 22, by = 2)) +
   scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
                      labels = c("Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
   # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
@@ -314,7 +314,7 @@ results_pe_se_rubin_sens %>%
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "sens_ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_ot52l90.png"), 
+ggsave(here::here("output", "figures", "sens_ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_2022_ot52l90.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
@@ -342,7 +342,7 @@ results_pe_se_year_table_sens <- results_pe_se_rubin_sens %>%
 
 results_pe_se_year_table_sens %>%
   writexl::write_xlsx(here::here("output", "tables", 
-                                 "sens_ager5le80_lmtp_pe_SL_2000_memimp_impute.xlsx"))
+                                 "sens_ager5le80_lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
 results_contrasts_year_memory_change_table_sens <- 
@@ -362,6 +362,6 @@ results_contrasts_year_memory_change_table_sens %>%
                  "Sustained - natural course (95% CI)")) %>%
   writexl::write_xlsx(
     here::here("output", "tables", 
-               "sens_ager5le80_lmtp_contrasts_SL_2000_memimp_impute.xlsx"))
+               "sens_ager5le80_lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))
 
 
