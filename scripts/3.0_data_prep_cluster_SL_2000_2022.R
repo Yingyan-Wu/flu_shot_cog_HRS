@@ -164,7 +164,7 @@ hrs_imp_r5resp_wide_minpn <- hrs_imp_r5resp_wide %>%
 # Sanity check
 with(hrs_imp_r5resp_wide_minpn, table(imp, useNA = "ifany"))
 # n=12908
-sum(hrs_imp_r5resp_wide_minpn$r5wtresp)/10 # 48546227
+sum(hrs_imp_r5resp_wide_minpn$r5wtresp)/10 # 48531932
 mean(hrs_imp_r5resp_wide_minpn$r5age_v2) # 68.15707
 
 #---- Sens: restrict baseline age to 80 ----
@@ -175,7 +175,7 @@ hrs_imp_r5resp_wide_ager5le80 <- hrs_imp_r5resp_wide %>%
 with(hrs_imp_r5resp_wide_ager5le80, table(imp, useNA = "ifany"))
 # Descriptives
 #n=17655
-sum(hrs_imp_r5resp_wide_ager5le80$r5wtresp)/10 # 63975880
+sum(hrs_imp_r5resp_wide_ager5le80$r5wtresp)/10 # 63964473
 mean(hrs_imp_r5resp_wide_ager5le80$r5age_v2) # 65.39377
 
 #---- Save the elements for TMLE ----
@@ -183,17 +183,14 @@ mean(hrs_imp_r5resp_wide_ager5le80$r5age_v2) # 65.39377
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_2000_2022.RData"))
 
-# Save sens filter to min person number only with non-specific dataset name
-hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_minpn
-save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_minpn_2000_2022.RData"))
-
 # Save sens r5age <= 80 data with non-specific dataset name
 # r5age [52, 80]
 hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_ager5le80
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_ager5le80_2000_2022.RData"))
-# Descriptives
-#n=17656
-sum(hrs_imp_r5resp_wide$r5wtresp)/10 # 63930793
-mean(hrs_imp_r5resp_wide$r5age_v2) # 65.39367
+
+# Save sens filter to min person number only with non-specific dataset name
+hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_minpn
+save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
+     file = here::here("data", "analysis_data", "data_for_cluster_minpn_2000_2022.RData"))
+
