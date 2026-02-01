@@ -14,9 +14,9 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 99999)
 
 #---- Read in the lmtp objects ----
-total_scenarios <- 1:120
+total_scenarios <- 1:130
 num_imp <- 10
-waves_fu <- 5:15
+waves_fu <- 5:16
 results_folder <- here::here("data", "model_results", "TMLE_SuperLearner/")
 results_files <- list.files(path = results_folder, full.names = TRUE)
 scenarios_res <- gsub(".*_(.*)\\..*", "\\1", results_files) %>% as.numeric() %>%
@@ -32,7 +32,7 @@ for (s in scenarios_res){
 # Work on imputations with full results
 # Set up this way as previously, there were some scenarios that did not complete running on Hoffman
 full_imps <- 1:10
-full_waves <- 5:15
+full_waves <- 5:14
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -186,7 +186,7 @@ results_contrasts_memory_change <- results_contrasts %>%
 # hist(y_w3_1sus_1$weights)
 # hist(y_w3_1sus_3$weights)
 
-load(here::here("data", "analysis_data", "data_for_cluster_20250824.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_2000_2022.RData"))
 
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
@@ -237,7 +237,7 @@ results_po_sus_wide <- results_po_sus %>%
 # results_po %<>% rbind(results_po_sus_wide)
 
 results_po %<>% 
-  # select(-contains(paste0("w", waves_fu[!waves_fu %in% full_waves]))) %>%
+  select(-contains(paste0("w", waves_fu[!waves_fu %in% full_waves]))) %>%
   rbind(results_po_sus_wide)
 
 # Sanity check
@@ -259,13 +259,13 @@ with(results_po, table(type, imp))
 
 # #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_2022_ot52l90.RData"))
 save(results_po,
-     file = here::here("data", "model_results", "lmtp_results_SL_po_2000_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_2000_2022_ot52l90.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_ot52l90.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_2000_2022_ot52l90.RData"))
 num_imp <- length(full_imps)
 results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
@@ -281,7 +281,7 @@ results_pe_se_rubin <- results_pe_se %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
 saveRDS(results_pe_se_rubin,
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52l90.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_2020_ot52l90.RDS"))
 
 results_contrasts_rubin <- results_contrasts %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -319,7 +319,7 @@ results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
 Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
                 weights = hrs_imp_r5resp_wide$r5wtresp, na.rm= T)
 # 0.0000000000000004949333
-mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.123927
+mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.123286
 
 ##---- Trajectory plot ----
 results_pe_se_rubin <-
@@ -399,7 +399,7 @@ results_pe_se_year_table <- results_pe_se_rubin %>%
 
 results_pe_se_year_table %>%
   writexl::write_xlsx(here::here("output", "tables",
-                                 "lmtp_pe_SL_2000_memimp_impute.xlsx"))
+                                 "lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
 results_contrasts_year_memory_change_table <- results_contrasts_memory_change_rubin %>%
@@ -460,7 +460,7 @@ results_pe_se_rubin <- results_pe_se %>%
          fu_year = survey_year - 2000)
 
 # From the lmtp no ipcw nc results
-load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_ot52l90.RData"))
+load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_2022_ot52l90.RData"))
 nc_noipcw_imp1 <- nc_results %>%
   filter(imp == 1) %>%
   rename(mean_ponc = point_est,
@@ -487,7 +487,7 @@ nc_observed_comp_tib %>%
                     ymax = mean + qnorm(0.975) * se),
                 position = position_dodge((width = 0.5)),
                 width = 0.8) +
-  scale_x_continuous(breaks = seq(0, 20, by = 2)) +
+  scale_x_continuous(breaks = seq(0, 22, by = 2)) +
   # scale_y_continuous(limits = c(-0.8, 0.2), breaks = seq(-0.8, 0.2, by = 0.2)) +
   scale_linetype_manual(name = NULL, values = c("dashed", "solid"),
                         labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
@@ -499,5 +499,5 @@ nc_observed_comp_tib %>%
        color = "Type") +
   theme(legend.position = "bottom")
 
-ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_memimp_impute.png"),
+ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_2022_memimp_impute.png"),
        device = "png", width = 9, height = 7, units = "in", dpi = 300)

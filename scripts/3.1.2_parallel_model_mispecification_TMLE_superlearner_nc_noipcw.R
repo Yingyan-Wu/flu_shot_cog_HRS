@@ -19,11 +19,11 @@ library(earth)
 # # Paths local
 data_folder <- here::here("data", "analysis_data//")
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250824.RData"))
+load(paste0(data_folder, "data_for_cluster_2000_2022.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
-waves_fu = 5:15
+waves_fu = 5:16
 
 scenario_tib <- expand_grid(imp = 1:n_imp,
                             waves = waves_fu,
@@ -78,12 +78,12 @@ i = 1:nrow(scenario_tib), future.seed = TRUE)
 plan(sequential)
 (end_nc <- Sys.time())
 end_nc - start_nc
-# 26.02432 mins parallel on 10 cores
+# 40.85074 mins parallel on 10 cores
 
 nc_results <- do.call(rbind, lmtp_nc_noipcw)
 
 #---- save the results ----
 save(lmtp_nc_noipcw, file = here::here("data", "model_results", 
-                                       "lmtp_nc_noipcw_model_output_2000_ot52l90.RData"))
+                                       "lmtp_nc_noipcw_model_output_2000_2022_ot52l90.RData"))
 save(nc_results, file = here::here("data", "model_results", 
-                                   "lmtp_nc_noipcw_results_2000_ot52l90.RData"))
+                                   "lmtp_nc_noipcw_results_2000_2022_ot52l90.RData"))
