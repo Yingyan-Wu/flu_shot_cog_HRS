@@ -16,7 +16,7 @@ library(earth)
 #---- Load the data & function ----
 # # Paths local
 data_folder <- here::here("data", "analysis_data//")
-results_folder <- here::here("data", "model_results", "local", "TMLE_SuperLearner//")
+results_folder <- here::here("data", "model_results", "local/")
 
 # Paths cluster
 # project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
@@ -24,11 +24,11 @@ results_folder <- here::here("data", "model_results", "local", "TMLE_SuperLearne
 # results_folder <- paste0(project_folder, "TMLE_SuperLearner/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_20250824.RData"))
+load(paste0(data_folder, "data_for_cluster_2000_2022.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
-waves_fu = 5:15
+waves_fu = 5:16
 
 # Specify base learners for Super Learning
 # Review available models. 
@@ -39,8 +39,17 @@ sl_lib <- c("SL.glm", "SL.randomForest", "SL.earth")
 scenario_tib <- expand_grid(
   imp = 1:n_imp,
   waves = waves_fu,
-  interventions = "1sus") %>%
-  filter(waves == 15)
+  interventions = "1sus") %>%  # "0sus")) %>%
+  add_row(imp = 1:n_imp,
+          waves = NA,
+          interventions = "nc") %>%
+  # faster things run first
+  arrange(desc(interventions), waves)
+
+uncompleted_scenarios <- c(121, 124, 126, 127, 128, 129, 130)
+scenario_tib <- scenario_tib[uncompleted_scenarios, ]
+old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
+                               old_scenario_num = uncompleted_scenarios)
 
 #---- LMTP function ----
 lmtp_1sus_func <- function(intervention = "1sus"){
@@ -111,8 +120,10 @@ lmtp_1sus_func <- function(intervention = "1sus"){
 options(future.globals.maxSize = 8000*1024^2)
 
 # Half and Half
-scenes <- 4:5
+scenes <- 1:3
 # scenes <- 6:10
+
+Sys.time()
 for (scenario_num in scenes){
   
   print(scenario_num)
@@ -129,7 +140,7 @@ for (scenario_num in scenes){
   print(num_imp)
   
   dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp)
-  nrow(dt_imp_wide_imp1) # 20091
+  nrow(dt_imp_wide_imp1) # 20092
   
   (start_1sus <- Sys.time())
   lmtp_1sus_func(intervention = "1sus")

@@ -9,6 +9,9 @@ rm(list = ls())
 if (!require("pacman")){
   install.packages("pacman", repos='http://cran.us.r-project.org')
 }
+if (!require("lmtp")){
+  remotes::install_version("lmtp", version = "1.4.0")
+}
 p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
        "splines", "lmtp", "glue")
 
