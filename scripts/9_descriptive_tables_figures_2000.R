@@ -13,7 +13,8 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(scipen = 999)
 
 #---- Load the data ----
-hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_ot52l90.RDS"))
+hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", 
+                                     "imp_pmm_stacked_outcome_2000_2022_ot52l90.RDS"))
 n_imp = 10
 
 #---- Preparing the data ----
@@ -26,7 +27,7 @@ tv_vars <- c("age_v2",
              "insurance_2cat", "doct_vis_mt5",
              # Health behaviors
              "smoken", "mod_drinking", "vigorous_pa",
-             "cesd", "flone",
+             "cesd", # "flone",
              # Health conditions
              "shlt_fair_poor",
              "hibpe", "diabe", "cancre", "stroke", "hearte", "lunge",
@@ -53,10 +54,10 @@ hrs_imp_r5resp_wide <- hrs_imp_r5resp %>%
   pivot_wider(names_from = "wave", 
               values_from = c(all_of(tv_vars), fu_time),
               names_glue = "r{wave}{.value}") %>%
-  select(-paste0("r", seq(4, 14, by = 2), "flusht"), -contains("r2memimp")) %>%
+  select(-paste0("r", seq(4, 16, by = 2), "flusht"), -contains("r2memimp")) %>%
   mutate(max_fu_time = 
-           exec(pmax, !!!syms(paste0("r", 5:15, "fu_time")), na.rm = TRUE),
-         num_flusht = rowSums(across(paste0("r", seq(5, 15, by = 2), "flusht"))),
+           exec(pmax, !!!syms(paste0("r", 5:16, "fu_time")), na.rm = TRUE),
+         num_flusht = rowSums(across(paste0("r", seq(5, 16, by = 2), "flusht"))),
          flusht_taker = case_when(num_flusht == 0 ~ 0,
                                   num_flusht == 6 ~ 2,
                                   num_flusht %in% 1:5 ~ 1),
@@ -76,21 +77,49 @@ with(hrs_imp_r5resp %>%
 # death
 with(hrs_imp_r5resp_wide %>%
        filter(imp == 1),
-     table(r15dead, useNA = "ifany"))
-hrs_imp_r5resp_wide %>% filter(r15dead == 1) %>% with(., sum(r5wtresp))/
-sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5265133
+     table(r16dead, useNA = "ifany"))
+hrs_imp_r5resp_wide %>% filter(r16dead == 1) %>% with(., sum(r5wtresp))/
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5694435
 
 # INW
+hrs_imp_r5resp_wide %>% filter(r16inw_imp == 1) %>% with(., sum(r5wtresp))/
+  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.2869848
 hrs_imp_r5resp_wide %>% filter(r15inw_imp == 1) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.3425122
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.3423993
 
 # drop out
-hrs_imp_r5resp_wide %>% filter(r15iwstat == 7) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.1309745
+hrs_imp_r5resp_wide %>% filter(r16iwstat == 7) %>% with(., sum(r5wtresp))/
+  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.1435717
 
-# #---- Baseline age per cohort ----
-# load(here::here("data", "analysis_data", "hrs_selected_2000.RData"))
-# hrs_imp_r5resp_wide_imp1 <- hrs_imp_r5resp_wide %>% 
+#---- Age distribution at baseline and end of follow-up ----
+hrs_imp_r5resp_wide %>%
+  filter(imp == 1) %>%
+  select(paste0("r", c(5, 16), "age_v2"),
+         paste0("r", c(5, 16), "iwstat"),
+         r5wtresp) %>%
+  pivot_longer(cols = c(-r5wtresp), 
+               names_to = c("wave", ".value"), 
+               names_pattern = "r(\\d+)(.*)") %>%
+  filter(iwstat %in% c(1, 4)) %>%
+  mutate(wave = factor(wave, levels = c(5, 16))) %>%
+  ggplot() +
+  # Histogram (show count in y axis)
+  geom_histogram(aes(x = age_v2, fill = wave), 
+                 position = "identity", alpha = 0.5, binwidth = 1) +
+  labs(x = "Age in years", y = "Counts", fill = "wave") +
+  scale_fill_manual(values = c("steelblue", "darkgrey"), 
+                    labels = c("Baseline (wave 5)", 
+                               "End of follow-up (wave 16)")) +
+  scale_x_continuous(breaks = seq(50, 115, by = 10)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
+ggsave(here::here("output", "figures", "age_distribution_baseline_endfu.png"),
+       width = 9, height = 7, dpi = 300)
+
+# # ---- Baseline age per cohort ----
+# load(here::here("data", "analysis_data", "hrs_selected_2000_2022_ot52l90.RData"))
+# hrs_imp_r5resp_wide_imp1 <- hrs_imp_r5resp_wide %>%
 #   filter(imp == 1) %>%
 #   left_join(hrs_selected %>% select(HHIDPN, hacohort, racohbyr), by = "HHIDPN")
 # 
@@ -101,8 +130,8 @@ hrs_imp_r5resp_wide %>% filter(r15iwstat == 7) %>% with(., sum(r5wtresp))/
 #   #                             hacohort == 3 ~ "HRS") %>%
 #   #          factor(., levels = c("HRS", "HRS/AHEAD overlap", "AHEAD"))) %>%
 #   ggplot() +
-#   geom_density(aes(x = r5age_v2, color = as.factor(racohbyr)), position = "identity", 
-#                  alpha = 0.5, 
+#   geom_density(aes(x = r5age_v2, color = as.factor(racohbyr)), position = "identity",
+#                  alpha = 0.5,
 #                  binwidth = 1) +
 #   labs(x = "Baseline age in years", y = "Count", color = "Sample cohort") +
 #   theme_bw()
@@ -119,8 +148,9 @@ labelled_data <- hrs_imp_r5resp_wide %>%
          "flusht_cat", "num_flusht", "flusht_taker",
          starts_with("r5"),  
          -contains(c("iwstat", "fu_time", "inw_imp")), "max_fu_time") %>%
-  dplyr::mutate(across(c("female", "r5insurance_2cat", "r5smoken",
-                         "r5flone", "r5hibpe", "r5diabe", "r5cancre",
+  dplyr::mutate(across(c("female", "r5insurance_2cat", "r5smoken","r5mstat_2cat",
+                         # "r5flone", 
+                         "r5hibpe", "r5diabe", "r5cancre",
                          "r5stroke", "r5hearte", "r5lunge", "r5adl_2cat", 
                          "r5iadl_2cat"), 
                        function(x) factor(x, levels = c(1, 0),
@@ -131,9 +161,9 @@ labelled_data <- hrs_imp_r5resp_wide %>%
     raceeth = factor(raceeth, levels = c(1, 2, 3, 4),
                      labels = c("Non-Hispanic White", "Non-Hispanic Black", 
                                 "Hispanic", "Other")),
-    r5mstat_2cat = factor(r5mstat_2cat, levels = c(1, 0),
-                          labels = c("Married/partnered", 
-                                     "Separated/divorced/widowed/not married")),
+    # r5mstat_2cat = factor(r5mstat_2cat, levels = c(1, 0),
+    #                       labels = c("Married/partnered", 
+    #                                  "Separated/divorced/widowed/not married")),
     flusht_taker = factor(flusht_taker, levels = c(2, 1, 0),
                           labels = c("Always taker", "Some flu shot", "No flu shot"))) %>%
   labelled::set_variable_labels(
@@ -141,7 +171,7 @@ labelled_data <- hrs_imp_r5resp_wide %>%
     female = "Women",
     raceeth = "Race and ethnicity",
     raedyrs = "Years of education",
-    r5mstat_2cat = "Marital status",
+    r5mstat_2cat = "Married/partnered",
     r5income_pp = "Household income per person",
     r5insurance_2cat = "Having health insurance",
     r5doct_vis_mt5 = "≥ 5 doctor visits in the past 2 years",
@@ -150,7 +180,7 @@ labelled_data <- hrs_imp_r5resp_wide %>%
     r5shlt_fair_poor = "Self-rated health: Fair/poor",
     r5smoken = "Current smoker",
     r5cesd = "Center for Epidemiological Studies-Depression score",
-    r5flone = "Feeling lonely",
+    # r5flone = "Feeling lonely",
     r5hibpe = "Self-reported hypertension",
     r5diabe = "Self-reported diabetes",
     r5cancre = "Self-reported cancer",
@@ -167,7 +197,8 @@ labelled_data <- hrs_imp_r5resp_wide %>%
 cat_imp_svy <- labelled_data %>%
   select(female, raceeth, r5mstat_2cat, r5insurance_2cat, r5doct_vis_mt5,
          r5smoken, r5mod_drinking, r5vigorous_pa,
-         r5flone, r5shlt_fair_poor,
+         # r5flone, 
+         r5shlt_fair_poor,
          r5hibpe, r5diabe, r5cancre, r5stroke, r5hearte, r5lunge,
          r5adl_2cat, r5iadl_2cat, flusht_cat, flusht_taker,
          # baseline weights
@@ -284,13 +315,13 @@ table1_cont_weighted <- temp_cont_mean %>%
 table1_weighted <- rbind(table1_cont_weighted[1, ], # Baseline age
                          table1_cat_weighted[1:6, ], # female, raceeth
                          table1_cont_weighted[2, ], # years of edu
-                         table1_cat_weighted[7:9, ], # marital status
+                         table1_cat_weighted[7, ], # marital status
                          table1_cont_weighted[3, ], # income
-                         table1_cat_weighted[10:24, ],# health related
+                         table1_cat_weighted[8:21, ],# health related
                          table1_cont_weighted[c(4, 6), ] # depression & follow up
 ) 
 writexl::write_xlsx(table1_weighted, 
-                    here::here("output", "tables", "table1_imp_weighted_stratified_2000_ot52l90.xlsx"))
+                    here::here("output", "tables", "table1_imp_weighted_stratified_2000_2022_ot52l90.xlsx"))
 
 ##---- Flu shot descriptive table ----
 # Always taker, some flu shot, no flu shot
@@ -301,7 +332,7 @@ table1_cont_weighted[5, ]
 #                     here::here("output", "tables", "table_flusht.xlsx"))
 
 #---- eTable. pre imputation table 1 ----
-load(here::here("data", "analysis_data", "hrs_selected_2000_ot52l90.RData"))
+load(here::here("data", "analysis_data", "hrs_selected_2000_2022_ot52l90.RData"))
 
 hrs_selected_fu_time <- hrs_selected %>%
   select(HHIDPN, contains(c("iwstat", "age_v2"))) %>%
@@ -311,32 +342,35 @@ hrs_selected_fu_time <- hrs_selected %>%
                names_pattern = "r(\\d+)(.*)") %>%
   left_join(hrs_selected %>% select(HHIDPN, r5age_v2), by = "HHIDPN") %>%
   mutate(fu_time = case_when(iwstat %in% c(1, 4) ~ age_v2 - r5age_v2,
-                               iwstat %in% c(5, 6, 7, 9) ~ NA_real_)) %>%
+                             iwstat %in% c(5, 6, 7, 9) ~ NA_real_)) %>%
   select(-r5age_v2) %>%
   pivot_wider(names_from = "wave",
               values_from = c("iwstat", "age_v2", "fu_time"),
               names_glue = "r{wave}{.value}") %>%
   mutate(max_fu_time = 
-           exec(pmax, !!!syms(paste0("r", 5:15, "fu_time")), na.rm = TRUE)) %>%
+           exec(pmax, !!!syms(paste0("r", 5:16, "fu_time")), na.rm = TRUE)) %>%
   select(HHIDPN, max_fu_time)
 # Sanity check
 with(hrs_selected_fu_time, summary(max_fu_time))
 hrs_selected <- hrs_selected %>%
   left_join(hrs_selected_fu_time, by = "HHIDPN")
+hrs_selected %>% with(table(is.na(r5wtresp), r5iwstat, useNA = "ifany"))
 
 labelled_data_before_imp <- hrs_selected %>%
+  filter(!is.na(r5wtresp)) %>%
   select(r5age_v2, female, raceeth, raedyrs, 
          r5mstat_2cat, r5income_pp, r5insurance_2cat, r5doct_vis_mt5,
          # Health behaviors
          r5smoken, r5mod_drinking, r5vigorous_pa,
-         r5flone,
+         # r5flone,
          # Health conditions
          r5shlt_fair_poor,
          r5hibpe, r5diabe, r5cancre, r5stroke, r5hearte, r5lunge,
          # ADL and IADLs
          r5adl_2cat, r5iadl_2cat, r5cesd, max_fu_time, r5wtresp) %>%
   dplyr::mutate(across(c("female", "r5insurance_2cat", "r5smoken",
-                         "r5flone", "r5hibpe", "r5diabe", "r5cancre",
+                         "r5mstat_2cat", # "r5flone", 
+                         "r5hibpe", "r5diabe", "r5cancre",
                          "r5stroke", "r5hearte", "r5lunge", "r5adl_2cat", 
                          "r5iadl_2cat", "r5doct_vis_mt5", "r5vigorous_pa"), 
                        function(x) factor(x, levels = c(1, 0),
@@ -345,16 +379,16 @@ labelled_data_before_imp <- hrs_selected %>%
     raceeth = factor(raceeth, levels = c(1, 2, 3, 4),
                      labels = c("Non-Hispanic White", "Non-Hispanic Black", 
                                 "Hispanic", "Other")),
-    r5mstat_2cat = factor(r5mstat_2cat, levels = c(1, 0),
-                          labels = c("Married/partnered", 
-                                     "Separated/divorced/widowed/not married")),
+    # r5mstat_2cat = factor(r5mstat_2cat, levels = c(1, 0),
+    #                       labels = c("Married/partnered", 
+    #                                  "Separated/divorced/widowed/not married")),
     raedyrs = as.numeric(raedyrs)) %>%
   labelled::set_variable_labels(
     r5age_v2 = "Baseline age in years",
     female = "Women",
     raceeth = "Race and ethnicity",
     raedyrs = "Years of education",
-    r5mstat_2cat = "Marital/partnered",
+    r5mstat_2cat = "Married/partnered",
     r5income_pp = "Household income per person",
     r5insurance_2cat = "Having health insurance",
     r5doct_vis_mt5 = "≥ 5 doctor visits in the past 2 years",
@@ -363,7 +397,7 @@ labelled_data_before_imp <- hrs_selected %>%
     r5shlt_fair_poor = "Self-rated health: Fair/poor",
     r5smoken = "Current smoker",
     r5cesd = "Center for Epidemiological Studies-Depression score",
-    r5flone = "Feeling lonely",
+    # r5flone = "Feeling lonely",
     r5hibpe = "Self-reported hypertension",
     r5diabe = "Self-reported diabetes",
     r5cancre = "Self-reported cancer",
@@ -393,8 +427,7 @@ table1_before_imp_weighted %>% as_flex_table()
 table1_before_imp_weighted %>%
   as_flex_table() %>%
   flextable::save_as_docx(path = here::here("output", "tables",
-                                            "table1_before_imp.docx"))
-
+                                            "table1_before_imp_2000_2022.docx"))
 
 #---- eTable. Flu shot per wave ----
 # Flu shot acceptance prop at each eligible time (give a sense of natural course?)
@@ -402,7 +435,7 @@ table1_before_imp_weighted %>%
 
 # Current flu shot proportion per wave
 flusht_per_wave <- hrs_imp_r5resp %>%
-  filter(wave %in% seq(5, 15, by = 2)) %>%
+  filter(wave %in% seq(5, 16, by = 2)) %>%
   group_by(wave) %>%
   dplyr::summarize(
     n_sample_size = sum(inw_imp)/10,
@@ -418,7 +451,7 @@ flusht_per_wave <- hrs_imp_r5resp %>%
 
 # Sustained flu shot per wave
 flusht_sus_long <- hrs_imp_r5resp %>%
-  filter(wave %in% seq(5, 15, by = 2), inw_imp == 1) %>%
+  filter(wave %in% seq(5, 16, by = 2), inw_imp == 1) %>%
   arrange(imp, HHIDPN, wave) %>%
   group_by(imp, HHIDPN) %>%
   mutate(flu_cumsum = cumsum(ifelse(flusht == 1, 1, 0)),
@@ -452,8 +485,8 @@ flusht_sus_per_wave <- flusht_sus_long %>%
 #   with(., table(r5inw_imp, useNA = "ifany"))/10
 # hrs_imp_r5resp_wide %>%
 #   filter(r5flusht == 1, r5flusht == 1, r7flusht == 1, r9flusht == 1, 
-#          r11flusht == 1, r13flusht == 1, r15flusht == 1) %>%
-#   with(., table(r15inw_imp, useNA = "ifany"))/10
+#          r11flusht == 1, r13flusht == 1, r16flusht == 1) %>%
+#   with(., table(r16inw_imp, useNA = "ifany"))/10
 
 
 flusht_perwave_sus_tbl <- flusht_per_wave %>% 
@@ -462,12 +495,12 @@ flusht_perwave_sus_tbl <- flusht_per_wave %>%
             by = join_by(wave, n_sample_size))
 
 writexl::write_xlsx(flusht_perwave_sus_tbl,
-                    here::here("output", "tables", "table_flusht_per_wave_2000_ot52l90.xlsx"))
+                    here::here("output", "tables", "table_flusht_per_wave_2000_2022_ot52l90.xlsx"))
 
 
 
 #---- Fig 1. flu shot descriptive ----
-with(hrs_imp_r5resp %>% filter(!wave %in% seq(2, 14, by = 2)), 
+with(hrs_imp_r5resp %>% filter(!wave %in% seq(2, 16, by = 2)), 
      table(flusht, iwstat, useNA = "ifany"))
 
 flusht_fortraj <- hrs_imp_r5resp %>%
@@ -475,14 +508,14 @@ flusht_fortraj <- hrs_imp_r5resp %>%
   pivot_wider(names_from = "wave", 
               values_from = "flusht",
               names_glue = "r{wave}flusht") %>%
-  select(paste0("r", seq(5, 15, by = 2), "flusht")) %>%
-  group_by(across(all_of(paste0("r", seq(5, 15, by = 2), "flusht")))) %>%
+  select(paste0("r", seq(5, 16, by = 2), "flusht")) %>%
+  group_by(across(all_of(paste0("r", seq(5, 16, by = 2), "flusht")))) %>%
   dplyr::summarize(count = round(n()/n_imp)) %>% ungroup() %>%
-  mutate(across(paste0("r", seq(5, 15, by = 2), "flusht"), 
+  mutate(across(paste0("r", seq(5, 16, by = 2), "flusht"), 
                 ~case_when(. == 0 ~ "0",
                            . == 1 ~ "1",
                            is.na(.) ~ "NA"))) %>%
-  mutate(across(paste0("r", seq(5, 15, by = 2), "flusht"), 
+  mutate(across(paste0("r", seq(5, 16, by = 2), "flusht"), 
                 ~factor(., levels = c("0", "1", "NA"), 
                         labels = c("Not vaccinated", "Vaccinated", "Drop out/death"))))
 
@@ -523,13 +556,13 @@ flusht_fortraj %>%
 #         strip.text = element_text(size = 14, color = "black"))
 # ggsave(here::here("output", "figures", "fig_flusht_traj_SER.png"),
 #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
-ggsave(here::here("output", "figures", "fig_flusht_traj_2000.png"), 
+ggsave(here::here("output", "figures", "fig_flusht_traj_2000_2022.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 #---- Table S1: missingness ----
 # Missing summary
 missing_summary <- readxl::read_xlsx(here::here("output", "tables", 
-                                                "missing_summary_2000.xlsx"))
+                                                "missing_summary_2000_2022.xlsx"))
 
 missing_summary_fmt <- missing_summary %>%
   mutate(labels = case_when(feature == "iwstat" ~ "Interview status",
@@ -547,7 +580,7 @@ missing_summary_fmt <- missing_summary %>%
                             feature == "shlt_fair_poor" ~ "Self-rated health",
                             feature == "smoken" ~ "Smoking status",
                             feature == "cesd" ~ "Center for Epidemiological Studies-Depression score",
-                            feature == "flone" ~ "Loneliness status",
+                            # feature == "flone" ~ "Loneliness status",
                             feature == "hibpe" ~ "Self-reported hypertension",
                             feature == "diabe" ~ "Self-reported diabetes",
                             feature == "cancre" ~ "Self-reported cancer",
@@ -565,28 +598,45 @@ missing_summary_fmt <- missing_summary %>%
   select(labels, pct_missing)
 
 writexl::write_xlsx(missing_summary_fmt,
-                    here::here("output", "tables", "missing_summary_2000_fmt.xlsx"))
+                    here::here("output", "tables", "missing_summary_2000_2022_fmt.xlsx"))
 
 #---- death/ loss to follow up over time ----
 # Sanity check on iwstat not change for each imp
 with(hrs_imp_r5resp, table(imp, iwstat, useNA = "ifany"))
+with(hrs_imp_r5resp, table(wave, iwstat, useNA = "ifany"))
 
 # Death and loss to follow up over time
-hrs_imp_r5resp %>%
-  filter(imp == 1) %>%
+hrs_death_ltfu_prop <- hrs_imp_r5resp %>%
+  filter(wave >= 5) %>%
   select(HHIDPN, wave, iwstat) %>%
-  mutate(iwstat = case_when(iwstat %in% c(1, 4) ~ "In Sample",
-                            iwstat %in% c(5, 6) ~ "Death",
-                            iwstat == 7 ~ "Formally drop out from the sample")) %>%
-  ggplot() +
-  geom_bar(aes(x = wave, fill = iwstat), position = "fill") +
-  scale_fill_manual(name = "Follow up status",
-                    values = c("Dark Grey", "light Grey", "light blue")) +
-  # Add label to each component
-  geom_text(stat = 'count', aes(
-    x = wave,
-                                 label = scales::percent(..count../tapply(..count.., ..x.., sum)[..x..]),
-                                 group = iwstat),
-            position = position_fill(vjust = 0.5), size = 3) +
-  labs(x = "Follow-up waves", y = "Proportion") +
-  theme_bw() 
+  mutate(iwstat = case_when(
+    iwstat %in% c(1, 4) ~ "In sample",
+    iwstat %in% c(5, 6) ~ "Death",
+    iwstat == 7 ~ "Formally drop out from the sample")) %>%
+  count(wave, iwstat) %>%
+  group_by(wave) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(fu_yr = (wave - 5) * 2)
+
+hrs_death_ltfu_prop %>%
+  ggplot(aes(x = fu_yr, y = prop, fill = iwstat)) +
+  geom_col(position = "fill") +
+  geom_text(aes(label = scales::percent(prop)),
+            position = position_fill(vjust = 0.5),
+            size = 3) +
+  scale_fill_manual(
+    name = "Follow up status",
+    values = c("Dark Grey", "light Grey", "light blue")) +
+  labs(x = "Follow-up years", y = "Proportion %") +
+  scale_x_continuous(breaks = seq(0, 22, by = 2)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        text = element_text(size = 12, color = "black"),
+        strip.text.x = element_text(size = 12, color = "black"),
+        strip.text.y = element_text(size = 12, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black"),
+        legend.text = element_text(size = 12, color = "black"))
+ggsave(here::here("output", "figures", "fig_death_ltfu_2000_2022.png"), 
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)

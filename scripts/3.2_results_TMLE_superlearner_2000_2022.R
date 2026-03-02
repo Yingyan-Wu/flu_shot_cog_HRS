@@ -8,8 +8,12 @@ rm(list = ls())
 if (!require("pacman")){
   install.packages("pacman", repos='http://cran.us.r-project.org')
 }
+if (!require("lmtp")){
+  remotes::install_version("lmtp", version = "1.4.0")
+}
 p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
        "splines", "lmtp", "glue")
+
 
 options(sci = 99999)
 
@@ -32,7 +36,7 @@ for (s in scenarios_res){
 # Work on imputations with full results
 # Set up this way as previously, there were some scenarios that did not complete running on Hoffman
 full_imps <- 1:10
-full_waves <- 5:14
+full_waves <- 5:16
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -101,14 +105,16 @@ results_pe_se %<>%
                           type == "1sus" ~ "Continuous flu shot"))
 
 #---- Contrasts ----
-# 10 imputations for the last wave were completed on mbp
-# Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
-table(round(y_w15_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-table(round(y_w15_1sus_2$weights, 9) == round(y_w5_1sus_2$weights, 9))
-table(round(y_w15_1sus_3$weights, 9) == round(y_w5_1sus_3$weights, 9))
-for (imp in 1:10){
-  assign(paste0("y_w", 15, "_1sus_", imp),
-         get(paste0("y_w", 15, "_1sus_", imp)) %>%
+# Pending
+# # There are 2 imputations for the last wave were completed on mbp
+# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
+# table(y_w16_1sus_1$weights == y_w5_1sus_1$weights)
+table(round(y_w16_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+table(round(y_w16_1sus_4$weights, 9) == round(y_w5_1sus_4$weights, 9))
+
+for (imp in c(1, 4)){
+  assign(paste0("y_w", 16, "_1sus_", imp),
+         get(paste0("y_w", 16, "_1sus_", imp)) %>%
            `[[<-`("weights", get(paste0("y_w5_1sus_", imp))$weights))
 }
 
@@ -182,9 +188,9 @@ results_contrasts_memory_change <- results_contrasts %>%
 
 # # Test
 # table(lmtp_nc_results_imp_1[[1]]$weights == lmtp_nc_results_imp_1[[11]]$weights)
-# table(round(y_w3_1sus_1$weights, 1) == round(y_w3_1sus_3$weights, 1))
-# hist(y_w3_1sus_1$weights)
-# hist(y_w3_1sus_3$weights)
+# table(round(y_w5_1sus_1$weights, 1) == round(y_w5_1sus_3$weights, 1))
+# hist(y_w5_1sus_1$weights)
+# hist(y_w5_1sus_3$weights)
 
 load(here::here("data", "analysis_data", "data_for_cluster_2000_2022.RData"))
 
@@ -237,7 +243,7 @@ results_po_sus_wide <- results_po_sus %>%
 # results_po %<>% rbind(results_po_sus_wide)
 
 results_po %<>% 
-  select(-contains(paste0("w", waves_fu[!waves_fu %in% full_waves]))) %>%
+  # select(-contains(paste0("w", waves_fu[!waves_fu %in% full_waves]))) %>%
   rbind(results_po_sus_wide)
 
 # Sanity check
@@ -272,7 +278,8 @@ results_pe_se_rubin <- results_pe_se %>%
   reframe(
     point_est_rubin = mean(point_est),
     vw = sum((se)^2)/num_imp,
-    vb = sum((point_est - point_est_rubin)^2)/(num_imp-1),
+    vb = case_when(num_imp == 1 ~ 0,
+                   TRUE ~ sum((point_est - point_est_rubin)^2)/(num_imp-1)),
     se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
   select(-vb, -vw) %>%
   mutate(num_imp = num_imp,
@@ -288,7 +295,8 @@ results_contrasts_rubin <- results_contrasts %>%
   reframe(
     point_est_rubin = mean(point_est),
     vw = sum((se)^2)/num_imp,
-    vb = sum((point_est - point_est_rubin)^2)/(num_imp-1),
+    vb = case_when(num_imp == 1 ~ 0,
+                   TRUE ~ sum((point_est - point_est_rubin)^2)/(num_imp-1)),
     se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
   select(-vb, -vw) %>%
   mutate(num_imp = num_imp,
@@ -305,7 +313,8 @@ results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
   reframe(
     pe_rubin = mean(pe),
     vw = sum((se)^2)/num_imp,
-    vb = sum((pe - pe_rubin)^2)/(num_imp-1),
+    vb = case_when(num_imp == 1 ~ 0,
+                   TRUE ~ sum((pe - pe_rubin)^2)/(num_imp-1)),
     se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
   select(-vb, -vw) %>%
   mutate(num_imp = num_imp,
@@ -318,12 +327,12 @@ results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
 #---- Table and plots ----
 Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
                 weights = hrs_imp_r5resp_wide$r5wtresp, na.rm= T)
-# 0.0000000000000004949333
+# -3.133457e-15
 mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.123286
 
 ##---- Trajectory plot ----
 results_pe_se_rubin <-
-  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_ot52l90.RDS"))
+  readRDS(here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_2000_2020_ot52l90.RDS"))
 results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
@@ -371,7 +380,7 @@ results_pe_se_rubin %>%
 #       strip.text = element_text(size = 16, color = "black"))
 # ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute_SER.png"),
 #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
-ggsave(here::here("output", "figures", "lmtp_traj_SL_2000_memimp_impute.png"),
+ggsave(here::here("output", "figures", "lmtp_traj_SL_2000_2020_memimp_impute.png"),
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
@@ -418,7 +427,7 @@ results_contrasts_year_memory_change_table %>%
                  "Sustained - natural course (95% CI)")) %>%
   writexl::write_xlsx(
     here::here("output", "tables",
-               "lmtp_contrasts_SL_2000_memimp_impute.xlsx"))
+               "lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))
 
 #---- Comparing observed memory trajectories ----
 # Compare based on pooled results

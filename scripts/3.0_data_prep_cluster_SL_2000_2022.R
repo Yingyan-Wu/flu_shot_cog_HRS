@@ -165,7 +165,8 @@ hrs_imp_r5resp_wide_minpn <- hrs_imp_r5resp_wide %>%
 with(hrs_imp_r5resp_wide_minpn, table(imp, useNA = "ifany"))
 # n=12908
 sum(hrs_imp_r5resp_wide_minpn$r5wtresp)/10 # 48531932
-mean(hrs_imp_r5resp_wide_minpn$r5age_v2) # 68.15707
+Hmisc::wtd.mean(hrs_imp_r5resp_wide_minpn$r5age_v2, 
+                hrs_imp_r5resp_wide_minpn$r5wtresp) # 66.37266
 
 #---- Sens: restrict baseline age to 80 ----
 hrs_imp_r5resp_wide_ager5le80 <- hrs_imp_r5resp_wide %>%
@@ -174,9 +175,10 @@ hrs_imp_r5resp_wide_ager5le80 <- hrs_imp_r5resp_wide %>%
 # Sanity check
 with(hrs_imp_r5resp_wide_ager5le80, table(imp, useNA = "ifany"))
 # Descriptives
-#n=17655
+#n=17656
 sum(hrs_imp_r5resp_wide_ager5le80$r5wtresp)/10 # 63964473
-mean(hrs_imp_r5resp_wide_ager5le80$r5age_v2) # 65.39377
+Hmisc::wtd.mean(hrs_imp_r5resp_wide_ager5le80$r5age_v2, 
+                hrs_imp_r5resp_wide_ager5le80$r5wtresp) # 64.21037
 
 #---- Save the elements for TMLE ----
 # restrict to age [52, 90) at baseline, add 2022 variables
