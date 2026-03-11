@@ -105,19 +105,17 @@ results_pe_se %<>%
                           type == "1sus" ~ "Continuous flu shot"))
 
 #---- Contrasts ----
-# Pending
-# # There are 2 imputations for the last wave were completed on mbp
-# # Due to scale differences after digit 10 (mbp had slight difference for scaling the weights)
+# # Commented this out as all scenarios were run on hoffman
+# # If imputation run locally the results might be different from those run on hoffman
+# # Due to scale differences after digit 10 (mac had slight difference for scaling the weights)
 # table(y_w16_1sus_1$weights == y_w5_1sus_1$weights)
-table(round(y_w16_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
-table(round(y_w16_1sus_4$weights, 9) == round(y_w5_1sus_4$weights, 9))
-
-for (imp in c(1, 4)){
-  assign(paste0("y_w", 16, "_1sus_", imp),
-         get(paste0("y_w", 16, "_1sus_", imp)) %>%
-           `[[<-`("weights", get(paste0("y_w5_1sus_", imp))$weights))
-}
-
+# table(round(y_w16_1sus_1$weights, 9) == round(y_w5_1sus_1$weights, 9))
+# 
+# for (imp in c(1)){
+#   assign(paste0("y_w", 16, "_1sus_", imp),
+#          get(paste0("y_w", 16, "_1sus_", imp)) %>%
+#            `[[<-`("weights", get(paste0("y_w5_1sus_", imp))$weights))
+# }
 # lmtp_contrast(y_w10_0sus_1, ref = y_w10_1sus_1)
 
 lmtp_res_contrast <- function(w_index, w_ref, intv_index, intv_ref, imp){
@@ -185,7 +183,6 @@ results_contrasts_memory_change <- results_contrasts %>%
 # normalized sampling weights were slightly different across imputation
 # Theta was calculated by weighted mean of potential outcomes from the first column
 # of `outcome_reg`
-
 # # Test
 # table(lmtp_nc_results_imp_1[[1]]$weights == lmtp_nc_results_imp_1[[11]]$weights)
 # table(round(y_w5_1sus_1$weights, 1) == round(y_w5_1sus_3$weights, 1))
