@@ -108,12 +108,16 @@ hrs_imp_r5resp_wide %>%
                  position = "identity", alpha = 0.5, binwidth = 1) +
   labs(x = "Age in years", y = "Counts", fill = "wave") +
   scale_fill_manual(values = c("steelblue", "darkgrey"), 
-                    labels = c("Baseline (wave 5)", 
-                               "End of follow-up (wave 16)")) +
-  scale_x_continuous(breaks = seq(50, 115, by = 10)) +
+                    labels = c("Baseline (year 2000)", 
+                               "End of follow-up (year 2022)")) +
+  scale_x_continuous(breaks = seq(50, 115, by = 5)) +
+  scale_y_continuous(breaks = seq(0, 1000, by = 100)) +
   theme_bw() +
   theme(legend.position = "bottom",
-        legend.title = element_blank())
+        legend.title = element_blank(),
+        legend.text = element_text(size = 11),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12))
 ggsave(here::here("output", "figures", "age_distribution_baseline_endfu.png"),
        width = 9, height = 7, dpi = 300)
 
