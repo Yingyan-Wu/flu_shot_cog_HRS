@@ -180,6 +180,20 @@ sum(hrs_imp_r5resp_wide_ager5le80$r5wtresp)/10 # 63964473
 Hmisc::wtd.mean(hrs_imp_r5resp_wide_ager5le80$r5age_v2, 
                 hrs_imp_r5resp_wide_ager5le80$r5wtresp) # 64.21037
 
+#---- Snes: age<=80 minpn ----
+hrs_imp_r5resp_wide_ager5le80minpn <- hrs_imp_r5resp_wide %>%
+  filter(r5age_v2 <= 80) %>%
+  left_join(hrs_imp %>% select(HHIDPN, household_min_pn) %>% distinct(),
+            by = "HHIDPN") %>%
+  filter(household_min_pn == 1)
+
+# sanity check
+table(hrs_imp_r5resp_wide_ager5le80minpn$imp, useNA = "ifany") # n=11037
+sum(hrs_imp_r5resp_wide_ager5le80minpn$r5wtresp)/10 # 42706762
+Hmisc::wtd.mean(hrs_imp_r5resp_wide_ager5le80minpn$r5age_v2,
+                hrs_imp_r5resp_wide_ager5le80minpn$r5wtresp) # 63.96579
+
+
 #---- Save the elements for TMLE ----
 # restrict to age [52, 90) at baseline, add 2022 variables
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
@@ -196,3 +210,7 @@ hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_minpn
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_minpn_2000_2022.RData"))
 
+# Save sens filter to [52m\, 80] min person number only with non-specific dataset name
+hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_ager5le80minpn
+save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
+     file = here::here("data", "analysis_data", "data_for_cluster_ager5le80minpn_2000_2022.RData"))

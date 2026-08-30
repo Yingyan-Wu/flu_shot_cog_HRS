@@ -2,7 +2,7 @@
 
 This repo contains all the code necessary to replicate data construction and analyses in the paper: 
 
-Wu Y, Ikesu R, Rojas-Saunero LP, Nianogo R, Gross AL, Ritz BR, Seamans MJ, Elser H, Mayeda ER. Emulating a target trial of sustained influenza vaccination and memory function and decline among middle-aged and older adults in the United States
+Wu Y, Ikesu R, Rojas-Saunero LP, Seamans MJ, Elser H, Pescador Jimenez M, Nianogo R, Gross AL, Ritz BR, Seamans MJ, Elser H, Mayeda ER. Sustained Influenza Vaccination and Memory Decline Among Middle-Aged and Older Adults in the United States: A Target Trial Emulation Study.
 
 ## Table of contents
 1. [Project Descriptions](#proj_desc)
@@ -18,6 +18,14 @@ While prior research suggests influenza vaccination may decrease dementia risk, 
 
 
 ## Scripts Descriptions <a name="script_desc"></a>
+We subsequently moved the sensitivity analysis *restricted to participants aged &le 80 years* to the **main analysis** and designated the original analysis restricted to *participants <90 years* as **Sensitivity Analysis 1** in the manuscript. To maintain the reproducibility and functionality of the existing analysis scripts, we retained the original labels in the scripts. The correspondence between the manuscript and script label is provided below for clarity.
+
+| Manuscript analysis                                             | Script labelling           |
+|-----------------------------------------------------------------|----------------------------|
+| **Main analysis**: age 52-80 years                              | sens1, sens_ager5le80      |
+| **Sensitivity analysis 1**: age 52-90 years                     | main                       |
+| **Sensitivity analysis 2**: only one participant within a household | sens3, sens_ager5le80minpn |
+
 *R scripts for data construction, TMLE, cluster computing submission and generating tables and figures were in the `scripts` folder. The R scripts are named in the order they should be run. Functions created by the authors were sourced where needed.*
 
 * **1.dataset_construction.R**: Cleans the data and creates the necessary variable for the analysis.
