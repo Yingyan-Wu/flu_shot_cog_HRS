@@ -1,7 +1,7 @@
-# Obtain estimates from the cluster results (Sens minpn: only one person in the household)
+# Obtain estimates from the cluster results (r5age <= 80)
 # local script
 # Yingyan Wu
-# Same calculation and process as in Script 3.2 (using HRS only Sens dataset and cluster results)
+# Age: 52-80 at baseline
 
 #---- Package loading + option specifications ----
 rm(list = ls())
@@ -21,7 +21,7 @@ options(sci = 999)
 total_scenarios <- 1:130
 num_imp <- 10
 waves_fu <- 5:16
-results_folder <- here::here("data", "model_results", "TMLE_SuperLearner_sens_minpn/")
+results_folder <- here::here("data", "model_results", "TMLE_SuperLearner_ager5le80/")
 results_files <- list.files(path = results_folder, full.names = TRUE)
 scenarios_res <- gsub(".*_(.*)\\..*", "\\1", results_files) %>% as.numeric() %>%
   sort()
@@ -34,8 +34,10 @@ for (s in scenarios_res){
 }
 
 # Work on imputations with full results
-full_imps <- 1:10
+full_imps <- c(6, 7)
 full_waves <- 5:16
+# full_imps <- 1:10
+# full_waves <- 5:16
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -86,7 +88,7 @@ lmtp_pe_se <- function(wave = 5, intervention, imp){
 }
 
 results_pe_se <- 
-  lapply(seq_along(full_imps), 
+  lapply(full_imps, 
          function(x) lmtp_pe_se(intervention = "nc", imp = x)) %>%
   do.call(rbind,. )
 
@@ -172,7 +174,7 @@ results_contrasts_memory_change <- results_contrasts %>%
 # Theta was calculated by weighted mean of potential outcomes from the first column
 # of `outcome_reg`
 
-load(here::here("data", "analysis_data", "data_for_cluster_minpn_2000_2022.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_2000_2022.RData"))
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
 HHIDPN_vec <- hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
@@ -228,19 +230,19 @@ with(results_po, table(type, imp))
 
 #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_minpn_2000_2022_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_ager5le80_2000_2022_ot52l90.RData"))
 save(results_po, 
-     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_minpn_2000_2022_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_ager5le80_2000_2022_ot52l90.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_minpn_2000_2022_ot52l90.RData"))
-results_pe_se_sens2 <- results_pe_se
-results_contrasts_sens2 <- results_contrasts
-results_contrasts_memory_change_sens2 <- results_contrasts_memory_change
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_ager5le80_2000_2022_ot52l90.RData"))
+results_pe_se_sens <- results_pe_se
+results_contrasts_sens <- results_contrasts
+results_contrasts_memory_change_sens <- results_contrasts_memory_change
 num_imp <- length(full_imps)
 
-results_pe_se_rubin_sens2 <- results_pe_se_sens2 %>%
+results_pe_se_rubin_sens <- results_pe_se_sens %>%
   group_by(type, wave) %>%
   reframe(
     point_est_rubin = mean(point_est),
@@ -253,10 +255,10 @@ results_pe_se_rubin_sens2 <- results_pe_se_sens2 %>%
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
-saveRDS(results_pe_se_rubin_sens2, 
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_minpn_2000_2022_ot52l90.RDS"))
+saveRDS(results_pe_se_rubin_sens, 
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_ager5le80_2000_2022_ot52l90.RDS"))
 
-results_contrasts_rubin_sens2 <- results_contrasts_sens2 %>%
+results_contrasts_rubin_sens <- results_contrasts_sens %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
   reframe(
     point_est_rubin = mean(point_est),
@@ -270,7 +272,7 @@ results_contrasts_rubin_sens2 <- results_contrasts_sens2 %>%
          survey_year_index = (wave_index - 5)*2 + 2000,
          fu_year_index = survey_year_index - 2000)
 
-results_contrasts_memory_change_rubin_sens2 <- results_contrasts_memory_change_sens2 %>%
+results_contrasts_memory_change_rubin_sens <- results_contrasts_memory_change_sens %>%
   pivot_longer(cols = -c(imp, wave_index),
                names_to = c(".value", "intervention"),
                names_pattern = "(.*)_(.*)") %>%
@@ -289,7 +291,7 @@ results_contrasts_memory_change_rubin_sens2 <- results_contrasts_memory_change_s
 
 #---- Table and plots ----
 ##---- Trajectory plot ----
-results_pe_se_rubin_sens2 %>%
+results_pe_se_rubin_sens %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
   # mutate(type = factor(type, levels = c("Continuous no flu shot", "Natural course", "Continuous flu shot"))) %>%
@@ -317,13 +319,13 @@ results_pe_se_rubin_sens2 %>%
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "sens_minpn_lmtp_traj_SL_memimp_impute_2000_2022_ot52l90.png"), 
+ggsave(here::here("output", "figures", "ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_2022_ot52l90.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
-results_pe_se_year_table_sens2 <- results_pe_se_rubin_sens2 %>%
+results_pe_se_year_table_sens <- results_pe_se_rubin_sens %>%
   filter(type != "Continuous no flu shot") %>%
-  bind_rows(results_contrasts_rubin_sens2 %>% 
+  bind_rows(results_contrasts_rubin_sens %>% 
               filter(intervention_index == "Continuous flu shot",
                      intervention_ref == "Natural course",
                      wave_index == wave_ref) %>%
@@ -343,13 +345,13 @@ results_pe_se_year_table_sens2 <- results_pe_se_rubin_sens2 %>%
   pivot_wider(names_from = type, values_from = pe_ci, 
               names_glue = "{type} (95% CI)")
 
-results_pe_se_year_table_sens2 %>%
+results_pe_se_year_table_sens %>%
   writexl::write_xlsx(here::here("output", "tables", 
-                                 "sens_minpn_lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
+                                 "ager5le80_lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
-results_contrasts_year_memory_change_table_sens2 <- 
-  results_contrasts_memory_change_rubin_sens2 %>%
+results_contrasts_year_memory_change_table_sens <- 
+  results_contrasts_memory_change_rubin_sens %>%
   mutate(across(c("pe_rubin", "ll_rubin", "ul_rubin"), 
                 ~sprintf(., fmt = '%#.2f'))) %>%
   mutate(pe_ci = paste0(pe_rubin, " (", ll_rubin, ", ", ul_rubin, ")")) %>%
@@ -359,12 +361,92 @@ results_contrasts_year_memory_change_table_sens2 <-
               names_glue = "{.value}_{intervention}") %>%
   select(fu_year_index, pe_ci_nc, pe_ci_1sus, pe_ci_1susnc)
 
-results_contrasts_year_memory_change_table_sens2 %>%
+results_contrasts_year_memory_change_table_sens %>%
   set_colnames(c("Follow up year", 
                  "Natural course (95% CI)", "Sustained flu shot (95% CI)", 
                  "Sustained - natural course (95% CI)")) %>%
   writexl::write_xlsx(
     here::here("output", "tables", 
-               "sens_minpn_lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))
+               "ager5le80_lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))
 
+#---- Comparing observed memory trajectories ----
+# Compare based on pooled results
+hrs_imp_r5resp_memimp_long <- hrs_imp_r5resp_wide %>%
+  select(HHIDPN, imp, r5wtresp, contains("memimp_stdz")) %>%
+  pivot_longer(cols = -c(HHIDPN, imp, r5wtresp), names_to = "wave", 
+               values_to = "memimp_stdz",
+               names_pattern = "r(.*)memimp_stdz") %>%
+  mutate(wave = as.numeric(wave)) %>%
+  na.omit()
 
+with(hrs_imp_r5resp_memimp_long, table(wave, imp, useNA = "ifany"))
+# Size equals across imputations at different waves
+
+nc_observed_comp_tib <- hrs_imp_r5resp_memimp_long %>%
+  filter(wave > 4) %>%
+  select(wave, memimp_stdz, r5wtresp) %>%
+  group_by(wave) %>%
+  dplyr::summarize(n = n(),
+                   mean_memimpstdz = Hmisc::wtd.mean(memimp_stdz, weights = r5wtresp,
+                                                     na.rm = TRUE),
+                   se_memimpstdz = sqrt(Hmisc::wtd.var(memimp_stdz, weights = r5wtresp,
+                                                       na.rm = TRUE))/sqrt(n)) %>%
+  ungroup() %>%
+  mutate(fu_yr = (wave - 5) * 2)
+
+results_pe_se_rubin <- results_pe_se %>%
+  group_by(type, wave) %>%
+  reframe(
+    point_est_rubin = mean(point_est),
+    vw = sum((se)^2)/num_imp,
+    vb = sum((point_est - point_est_rubin)^2)/(num_imp-1),
+    se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
+  select(-vb, -vw) %>%
+  mutate(num_imp = num_imp,
+         ll_rubin = point_est_rubin - qnorm(0.975)*se_rubin,
+         ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
+         survey_year = (wave - 5)*2 + 2000,
+         fu_year = survey_year - 2000)
+
+# From the lmtp no ipcw nc results
+load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_2022_ot52le80.RData"))
+nc_noipcw_imp1 <- nc_results %>%
+  filter(imp == 1) %>%
+  rename(mean_ponc = point_est,
+         se_ponc = se)
+
+nc_observed_comp_tib %<>%
+  left_join(nc_noipcw_imp1, by = "wave")
+# No IPCW NC PO is the same as observed mean!!!
+
+nc_observed_comp_tib %>%
+  pivot_longer(cols = -c(wave, n, fu_yr),
+               names_to = c(".value", "type"),
+               names_pattern = "(.*)_(.*)") %>%
+  filter(type == "memimpstdz") %>%
+  rbind(., nc_observed_comp_tib %>%
+          pivot_longer(cols = -c(wave, n, fu_yr),
+                       names_to = c(".value", "type"),
+                       names_pattern = "(.*)_(.*)") %>%
+          filter(type == "memimpstdz") %>% mutate(type = "po")) %>%
+  ggplot(aes(x = fu_yr, y = mean, group = type, color = type)) +
+  geom_point(position = position_dodge((width = 0.5))) +
+  geom_line(aes(linetype = type), position = position_dodge((width = 0.5))) +
+  geom_errorbar(aes(ymin = mean - qnorm(0.975) * se, 
+                    ymax = mean + qnorm(0.975) * se),
+                position = position_dodge((width = 0.5)),
+                width = 0.8) +
+  scale_x_continuous(breaks = seq(0, 22, by = 2)) +
+  # scale_y_continuous(limits = c(-0.8, 0.2), breaks = seq(-0.8, 0.2, by = 0.2)) +
+  scale_linetype_manual(name = NULL, values = c("dashed", "solid"),
+                        labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
+  scale_color_manual(name = NULL, values = c("#74B72E", "#3A5311"),
+                     labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
+  theme_bw() +
+  labs(x = "Follow-up year",
+       y = "Memory z-score",
+       color = "Type") +
+  theme(legend.position = "bottom")
+
+ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_2022_memimp_impute.png"),
+       device = "png", width = 9, height = 7, units = "in", dpi = 300)

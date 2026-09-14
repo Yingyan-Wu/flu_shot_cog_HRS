@@ -1,4 +1,4 @@
-# TMLE with super learner (Sens r5age <= 80)
+# TMLE with super learner (r5age <= 80)
 # running on hoffman cluster
 # Yingyan Wu
 # Same analysis as in Script 3.1 (with different dataset, and drop 0sus intervention)
@@ -42,7 +42,7 @@ library(earth)
 # Paths cluster
 project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
 data_folder <- paste0(project_folder, "data/")
-results_folder <- paste0(project_folder, "TMLE_SuperLearner_sens_ager5le80/")
+results_folder <- paste0(project_folder, "add_TMLE_SuperLearner_ager5le80/")
 
 # load the data
 load(paste0(data_folder, "data_for_cluster_ager5le80_2000_2022.RData"))
@@ -65,6 +65,13 @@ scenario_tib <- expand_grid(
           interventions = "nc") %>%
 # faster things run first
 arrange(desc(interventions), waves)
+
+uncompleted_scenarios <- c(61, 72, 101, 103, 109, 110, 112, 113, 114, 118, 119, 120, 122, 123, 124, 125, 128, 129, 130)
+true_scenario_tib <- scenario_tib[uncompleted_scenarios, ]
+
+scenario_tib <- bind_rows(replicate(10, true_scenario_tib, simplify = FALSE))
+old_new_scenario_num <- tibble(new_scenario_num = 1:nrow(scenario_tib),
+                               old_scenario_num = rep(uncompleted_scenarios, 10))
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index

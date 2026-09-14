@@ -1,6 +1,7 @@
 # Obtain estimates from the cluster results
 # local script
 # Yingyan Wu
+# Age: 52-89 at baseline
 
 #---- Package loading + option specifications ----
 rm(list = ls())
@@ -21,7 +22,7 @@ options(sci = 99999)
 total_scenarios <- 1:130
 num_imp <- 10
 waves_fu <- 5:16
-results_folder <- here::here("data", "model_results", "TMLE_SuperLearner/")
+results_folder <- here::here("data", "model_results", "TMLE_SuperLearner_ager5l90/")
 results_files <- list.files(path = results_folder, full.names = TRUE)
 scenarios_res <- gsub(".*_(.*)\\..*", "\\1", results_files) %>% as.numeric() %>%
   sort()
@@ -34,9 +35,10 @@ for (s in scenarios_res){
 }
 
 # Work on imputations with full results
-# Set up this way as previously, there were some scenarios that did not complete running on Hoffman
-full_imps <- 1:10
+full_imps <- 9
 full_waves <- 5:16
+# full_imps <- 1:10
+# full_waves <- 5:16
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -87,7 +89,7 @@ lmtp_pe_se <- function(wave = 5, intervention, imp){
 }
 
 results_pe_se <- 
-  lapply(seq_along(full_imps), 
+  lapply(full_imps, 
          function(x) lmtp_pe_se(intervention = "nc", imp = x)) %>%
   do.call(rbind,. )
 
@@ -425,85 +427,3 @@ results_contrasts_year_memory_change_table %>%
   writexl::write_xlsx(
     here::here("output", "tables",
                "lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))
-
-#---- Comparing observed memory trajectories ----
-# Compare based on pooled results
-hrs_imp_r5resp_memimp_long <- hrs_imp_r5resp_wide %>%
-  select(HHIDPN, imp, r5wtresp, contains("memimp_stdz")) %>%
-  pivot_longer(cols = -c(HHIDPN, imp, r5wtresp), names_to = "wave", 
-               values_to = "memimp_stdz",
-               names_pattern = "r(.*)memimp_stdz") %>%
-  mutate(wave = as.numeric(wave)) %>%
-  na.omit()
-
-with(hrs_imp_r5resp_memimp_long, table(wave, imp, useNA = "ifany"))
-# Size equals across imputations at different waves
-
-nc_observed_comp_tib <- hrs_imp_r5resp_memimp_long %>%
-  filter(wave > 4) %>%
-  select(wave, memimp_stdz, r5wtresp) %>%
-  group_by(wave) %>%
-  dplyr::summarize(n = n(),
-                   mean_memimpstdz = Hmisc::wtd.mean(memimp_stdz, weights = r5wtresp,
-                                                     na.rm = TRUE),
-                   se_memimpstdz = sqrt(Hmisc::wtd.var(memimp_stdz, weights = r5wtresp,
-                                                       na.rm = TRUE))/sqrt(n)) %>%
-  ungroup() %>%
-  mutate(fu_yr = (wave - 5) * 2)
-
-results_pe_se_rubin <- results_pe_se %>%
-  group_by(type, wave) %>%
-  reframe(
-    point_est_rubin = mean(point_est),
-    vw = sum((se)^2)/num_imp,
-    vb = sum((point_est - point_est_rubin)^2)/(num_imp-1),
-    se_rubin = sqrt(vw + vb + vb/num_imp)) %>%
-  select(-vb, -vw) %>%
-  mutate(num_imp = num_imp,
-         ll_rubin = point_est_rubin - qnorm(0.975)*se_rubin,
-         ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
-         survey_year = (wave - 5)*2 + 2000,
-         fu_year = survey_year - 2000)
-
-# From the lmtp no ipcw nc results
-load(here::here("data", "model_results", "lmtp_nc_noipcw_results_2000_2022_ot52l90.RData"))
-nc_noipcw_imp1 <- nc_results %>%
-  filter(imp == 1) %>%
-  rename(mean_ponc = point_est,
-         se_ponc = se)
-
-nc_observed_comp_tib %<>%
-  left_join(nc_noipcw_imp1, by = "wave")
-# No IPCW NC PO is the same as observed mean!!!
-
-nc_observed_comp_tib %>%
-  pivot_longer(cols = -c(wave, n, fu_yr),
-               names_to = c(".value", "type"),
-               names_pattern = "(.*)_(.*)") %>%
-  filter(type == "memimpstdz") %>%
-  rbind(., nc_observed_comp_tib %>%
-          pivot_longer(cols = -c(wave, n, fu_yr),
-                       names_to = c(".value", "type"),
-                       names_pattern = "(.*)_(.*)") %>%
-          filter(type == "memimpstdz") %>% mutate(type = "po")) %>%
-  ggplot(aes(x = fu_yr, y = mean, group = type, color = type)) +
-  geom_point(position = position_dodge((width = 0.5))) +
-  geom_line(aes(linetype = type), position = position_dodge((width = 0.5))) +
-  geom_errorbar(aes(ymin = mean - qnorm(0.975) * se, 
-                    ymax = mean + qnorm(0.975) * se),
-                position = position_dodge((width = 0.5)),
-                width = 0.8) +
-  scale_x_continuous(breaks = seq(0, 22, by = 2)) +
-  # scale_y_continuous(limits = c(-0.8, 0.2), breaks = seq(-0.8, 0.2, by = 0.2)) +
-  scale_linetype_manual(name = NULL, values = c("dashed", "solid"),
-                        labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
-  scale_color_manual(name = NULL, values = c("#74B72E", "#3A5311"),
-                     labels = c("Observed memory z-score", "Natural course Potential outcomes")) +
-  theme_bw() +
-  labs(x = "Follow-up year",
-       y = "Memory z-score",
-       color = "Type") +
-  theme(legend.position = "bottom")
-
-ggsave(here::here("output", "figures", "lmtp_nc_observed_comp_SL_2000_2022_memimp_impute.png"),
-       device = "png", width = 9, height = 7, units = "in", dpi = 300)

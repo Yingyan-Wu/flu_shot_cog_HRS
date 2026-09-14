@@ -1,4 +1,4 @@
-# Estimation of RR and RD for memory impairment (Sens r3age <= 80)
+# Estimation of RR and RD for memory impairment (Sens agele80minpn: only one person in the household and aged [52, 80])
 # Yingyan Wu
 # Same calculation and process as in Script 3.3 (using HRS only Sens dataset and cluster results)
 
@@ -14,8 +14,14 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Load data ----
+# load(here::here("data", "analysis_data", "data_for_cluster_hrsonly_20250502.RData"))
+# load(here::here("data", "model_results", "lmtp_results_SL_po_sens_ager3le80.RData"))
+# waves_fu = 3:15
+# 
+# load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
+
 load(here::here("data", "model_results", "wtd_mci_threshold_imp_2016_manly.RData"))
-load(here::here("data", "model_results", "lmtp_results_SL_po_sens_ager5le80_2000_2022_ot52l90.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_po_sens_agele80minpn_2000_2022_ot52l80.RData"))
 
 waves_fu = 5:16
 #---- Merge Threshold to PO ----
@@ -72,4 +78,4 @@ RD_RR_fmt_table <- RD_RR_risk_mci %>%
 # select(-starts_with(c("pe", "ll", "ul")))
 writexl::write_xlsx(RD_RR_fmt_table, 
                     here::here("output", "tables", 
-                               "sens_ager5le80_lmtp_RD_RR_SL_2000_2022_memimp_impute_ot52l90.xlsx"))
+                               "sens_agele80minpn_lmtp_RD_RR_SL_2000_2022_memimp_impute_ot52l80.xlsx"))

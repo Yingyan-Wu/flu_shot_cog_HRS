@@ -14,7 +14,10 @@ options(scipen = 999)
 
 #---- Load the data ----
 hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", 
-                                     "imp_pmm_stacked_outcome_2000_2022_ot52l90.RDS"))
+                                     "imp_pmm_stacked_outcome_2000_2022_ot52l90.RDS")) %>%
+  # restrict to aged <= 80 at baseline
+  filter(r5age_v2 <= 80)
+
 n_imp = 10
 
 #---- Preparing the data ----
@@ -79,17 +82,17 @@ with(hrs_imp_r5resp_wide %>%
        filter(imp == 1),
      table(r16dead, useNA = "ifany"))
 hrs_imp_r5resp_wide %>% filter(r16dead == 1) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5694435
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.5255966
 
 # INW
 hrs_imp_r5resp_wide %>% filter(r16inw_imp == 1) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.2869848
+  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.3205185
 hrs_imp_r5resp_wide %>% filter(r15inw_imp == 1) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.3423993
+  sum(hrs_imp_r5resp_wide$r5wtresp) # 0.3818145
 
 # drop out
 hrs_imp_r5resp_wide %>% filter(r16iwstat == 7) %>% with(., sum(r5wtresp))/
-  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.1435717
+  sum(hrs_imp_r5resp_wide$r5wtresp) #  0.1538848
 
 #---- Age distribution at baseline and end of follow-up ----
 hrs_imp_r5resp_wide %>%
@@ -118,7 +121,7 @@ hrs_imp_r5resp_wide %>%
         legend.text = element_text(size = 11),
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 12))
-ggsave(here::here("output", "figures", "age_distribution_baseline_endfu.png"),
+ggsave(here::here("output", "figures", "age_distribution_baseline_endfu_le80.png"),
        width = 9, height = 7, dpi = 300)
 
 # # ---- Baseline age per cohort ----
@@ -325,7 +328,7 @@ table1_weighted <- rbind(table1_cont_weighted[1, ], # Baseline age
                          table1_cont_weighted[c(4, 6), ] # depression & follow up
 ) 
 writexl::write_xlsx(table1_weighted, 
-                    here::here("output", "tables", "table1_imp_weighted_stratified_2000_2022_ot52l90.xlsx"))
+                    here::here("output", "tables", "table1_imp_weighted_stratified_2000_2022_ot52l80.xlsx"))
 
 ##---- Flu shot descriptive table ----
 # Always taker, some flu shot, no flu shot
@@ -339,6 +342,7 @@ table1_cont_weighted[5, ]
 load(here::here("data", "analysis_data", "hrs_selected_2000_2022_ot52l90.RData"))
 
 hrs_selected_fu_time <- hrs_selected %>%
+  filter(r5age_v2 <= 80) %>%
   select(HHIDPN, contains(c("iwstat", "age_v2"))) %>%
   pivot_longer(cols = -HHIDPN,
                names_to = c("wave", ".value"),
@@ -361,6 +365,7 @@ hrs_selected <- hrs_selected %>%
 hrs_selected %>% with(table(is.na(r5wtresp), r5iwstat, useNA = "ifany"))
 
 labelled_data_before_imp <- hrs_selected %>%
+  filter(r5age_v2 <= 80) %>%
   filter(!is.na(r5wtresp)) %>%
   select(r5age_v2, female, raceeth, raedyrs, 
          r5mstat_2cat, r5income_pp, r5insurance_2cat, r5doct_vis_mt5,
@@ -431,7 +436,7 @@ table1_before_imp_weighted %>% as_flex_table()
 table1_before_imp_weighted %>%
   as_flex_table() %>%
   flextable::save_as_docx(path = here::here("output", "tables",
-                                            "table1_before_imp_2000_2022.docx"))
+                                            "table1_before_imp_2000_2022_le80.docx"))
 
 #---- eTable. Flu shot per wave ----
 # Flu shot acceptance prop at each eligible time (give a sense of natural course?)
@@ -499,7 +504,7 @@ flusht_perwave_sus_tbl <- flusht_per_wave %>%
             by = join_by(wave, n_sample_size))
 
 writexl::write_xlsx(flusht_perwave_sus_tbl,
-                    here::here("output", "tables", "table_flusht_per_wave_2000_2022_ot52l90.xlsx"))
+                    here::here("output", "tables", "table_flusht_per_wave_2000_2022_ot52l80.xlsx"))
 
 
 
@@ -560,7 +565,7 @@ flusht_fortraj %>%
 #         strip.text = element_text(size = 14, color = "black"))
 # ggsave(here::here("output", "figures", "fig_flusht_traj_SER.png"),
 #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
-ggsave(here::here("output", "figures", "fig_flusht_traj_2000_2022.png"), 
+ggsave(here::here("output", "figures", "fig_flusht_traj_2000_2022_le80.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 #---- Table S1: missingness ----

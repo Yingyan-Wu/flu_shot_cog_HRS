@@ -17,10 +17,10 @@
 # load the job environment:
 . /u/local/Modules/default/init/modules.sh
 module load R/4.2.2 #loads R/4.2.2 for use 
-export OMP_NUM_THREADS=5 #uses max 5 threads (needs to match -pe shared)
+export OMP_NUM_THREADS=5 #uses max 1 threads (needs to match -pe shared)
 
 
 echo "======"
 echo SGE_TASK_ID=$SGE_TASK_ID      
-R CMD BATCH --no-save --no-restore "--args scenario_num=$SGE_TASK_ID"  /u/home/y/yingyanw/flu_cog_HRS/scripts/5.1_sens_minpn_cluster_TMLE_superlearner_2000_2022.R /u/home/y/yingyanw/flu_cog_HRS/console_output/output.$JOB_ID.$SGE_TASK_ID
-echo R CMD BATCH --no-save --no-restore "--args scenario_num=$SGE_TASK_ID"  /u/home/y/yingyanw/flu_cog_HRS/scripts/5.1_sens_minpn_cluster_TMLE_superlearner_2000_2022.R /u/home/y/yingyanw/flu_cog_HRS/console_output/output.$JOB_ID.$SGE_TASK_ID
+R CMD BATCH --no-save --no-restore "--args scenario_num=$SGE_TASK_ID"  /u/home/y/yingyanw/flu_cog_HRS/scripts/3.1_ager5l90_cluster_TMLE_superlearner_2000_2022.R /u/home/y/yingyanw/flu_cog_HRS/console_output/output.$JOB_ID.$SGE_TASK_ID
+echo R CMD BATCH --no-save --no-restore "--args scenario_num=$SGE_TASK_ID"  /u/home/y/yingyanw/flu_cog_HRS/scripts/3.1_ager5l90_cluster_TMLE_superlearner_2000_2022.R /u/home/y/yingyanw/flu_cog_HRS/console_output/output.$JOB_ID.$SGE_TASK_ID

@@ -368,7 +368,8 @@ imp_pmm_stacked %<>%
 
 # Restandardize memory score
 # using weighted mean and sd from wave 5
-r5memimp_mean_sd_imp <- imp_pmm_stacked %>% filter(wave == 5) %>%
+# standardize it to 52-80 sample
+r5memimp_mean_sd_imp <- imp_pmm_stacked %>% filter(wave == 5, r5age_v2 <= 80) %>%
   group_by(imp) %>%
   summarise(r5memimp_mean = Hmisc::wtd.mean(memimp, weights = r5wtresp),
             r5memimp_sd = sqrt(Hmisc::wtd.var(memimp, weights = r5wtresp)))
@@ -458,7 +459,7 @@ hrs_memimp_preandpost_imp_cohort %>%
   theme_bw()
 
 #---- Save imputed data ----
-saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_2022_ot52l90.RDS"))
+saveRDS(imp_pmm_stacked, here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_2022_ot52l90_restdz.RDS"))
 
 #---- OLD ----
 # ##---- Check the distribution of imputed memimp ----

@@ -1,7 +1,7 @@
-# TMLE with super learner (Sens minpn: only one person in the household)
+# TMLE with super learner
 # running on hoffman cluster
 # Yingyan Wu
-# Same analysis as in Script 3.1 (with different dataset, and drop 0sus intervention)
+# Age: 52-89 at baseline
 
 #---- Argument ----
 # Read in the arguments listed in the:
@@ -42,10 +42,10 @@ library(earth)
 # Paths cluster
 project_folder <- "/u/home/y/yingyanw/flu_cog_HRS/"
 data_folder <- paste0(project_folder, "data/")
-results_folder <- paste0(project_folder, "TMLE_SuperLearner_sens_minpn/")
+results_folder <- paste0(project_folder, "TMLE_SuperLearner_ager5l90/")
 
 # load the data
-load(paste0(data_folder, "data_for_cluster_minpn_2000_2022.RData"))
+load(paste0(data_folder, "data_for_cluster_ager5l90_2000_2022.RData"))
 
 #---- Scenario tibble ----
 n_imp = 10
@@ -59,12 +59,12 @@ sl_lib <- c("SL.glm", "SL.randomForest", "SL.earth")
 scenario_tib <- expand_grid(
   imp = 1:n_imp,
   waves = waves_fu,
-  interventions = "1sus") %>% # "0sus")) %>%
+  interventions = "1sus") %>%  # "0sus")) %>%
   add_row(imp = 1:n_imp,
           waves = NA,
           interventions = "nc") %>%
-# faster things run first
-arrange(desc(interventions), waves)
+  # faster things run first
+  arrange(desc(interventions), waves)
 
 #---- Scenario variables ----
 # Make sure that scenario_num is not greater than all the scenario index
@@ -73,6 +73,9 @@ if (scenario_num > nrow(scenario_tib)) {
   # supply default value
   scenario_num <- 1
 }
+
+# # Test
+# scenario_num = 21
 
 # print values just to make sure:
 print(scenario_num)
@@ -88,8 +91,8 @@ print(i)
 print(intervention)
 print(num_imp)
 
-dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp) # 17655 obs
-nrow(dt_imp_wide_imp1)
+dt_imp_wide_imp1 <- hrs_imp_r5resp_wide %>% filter(imp == num_imp)
+nrow(dt_imp_wide_imp1) # 20091
 
 #---- Analysis ----
 if (intervention == "nc"){
@@ -131,7 +134,7 @@ if (str_detect(intervention, "sus")){
               learners_outcome = sl_lib,
               learners_trt = sl_lib)
   }
-  (start_sus <- Sys.time())
+  print(start_sus <- Sys.time())
   plan(multisession, workers = 5)
   set.seed(num_imp)
   (trt <- case_when(intervention == "1sus" ~ 1,
@@ -140,7 +143,7 @@ if (str_detect(intervention, "sus")){
   plan(sequential)
   
   assign(paste0("y_w", wave, "_", intervention, "_", num_imp), temp)
-  (end_sus <- Sys.time())
+  print(end_sus <- Sys.time())
   end_sus - start_sus
 }
 

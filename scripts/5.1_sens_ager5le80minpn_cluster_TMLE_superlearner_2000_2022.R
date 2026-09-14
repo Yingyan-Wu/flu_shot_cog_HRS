@@ -1,4 +1,4 @@
-# TMLE with super learner (Sens minpn: only one person in the household)
+# TMLE with super learner (Sens agele80minpn: only one person in the household and aged [52, 80])
 # running on hoffman cluster
 # Yingyan Wu
 # Same analysis as in Script 3.1 (with different dataset, and drop 0sus intervention)

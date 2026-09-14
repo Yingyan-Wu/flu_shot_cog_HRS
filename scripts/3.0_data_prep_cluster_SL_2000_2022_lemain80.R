@@ -13,7 +13,7 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(scipen = 999)
 
 #---- Load the data ----
-hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_2022_ot52l90.RDS"))
+hrs_imp <- readRDS(here::here("data", "analysis_data", "imp_pmm_stacked_outcome_2000_2022_ot52l90_restdz.RDS"))
 
 #---- Preparing the data ----
 # Sanity check
@@ -155,32 +155,26 @@ hrs_imp_r5resp_wide %>% filter(if_all(contains("flusht"), ~ .x == 1)) %>%
 hrs_imp_r5resp_wide %>% filter(if_all(contains("flusht"), ~ .x == 0)) %>%
   with(., table(imp, useNA = "ifany"))
 
-#---- Sens1: restrict to one person in the household ----
-# using lowest number of pn
-hrs_imp_r5resp_wide_minpn <- hrs_imp_r5resp_wide %>%
-  left_join(hrs_imp %>% select(HHIDPN, household_min_pn) %>% distinct(),
-            by = "HHIDPN") %>%
-  filter(household_min_pn == 1)
-# Sanity check
-with(hrs_imp_r5resp_wide_minpn, table(imp, useNA = "ifany"))
-# n=12908
-sum(hrs_imp_r5resp_wide_minpn$r5wtresp)/10 # 48531932
-Hmisc::wtd.mean(hrs_imp_r5resp_wide_minpn$r5age_v2, 
-                hrs_imp_r5resp_wide_minpn$r5wtresp) # 66.37266
-
-#---- Sens: restrict baseline age to 80 ----
+#---- Main: restrict baseline age to 80 ----
 hrs_imp_r5resp_wide_ager5le80 <- hrs_imp_r5resp_wide %>%
   filter(r5age_v2 <= 80) 
 
-# Sanity check
-with(hrs_imp_r5resp_wide_ager5le80, table(imp, useNA = "ifany"))
 # Descriptives
 #n=17656
 sum(hrs_imp_r5resp_wide_ager5le80$r5wtresp)/10 # 63964473
 Hmisc::wtd.mean(hrs_imp_r5resp_wide_ager5le80$r5age_v2, 
                 hrs_imp_r5resp_wide_ager5le80$r5wtresp) # 64.21037
 
-#---- Snes: age<=80 minpn ----
+#---- Sens: restrict baseline age to 90 ----
+# Sanity check
+with(hrs_imp_r5resp_wide, table(imp, useNA = "ifany"))
+# Descriptives
+#n=20092
+sum(hrs_imp_r5resp_wide$r5wtresp)/10 # 71489409
+Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5age_v2, 
+                hrs_imp_r5resp_wide$r5wtresp) # 66.27904
+
+#---- Sens: age<=80 minpn ----
 hrs_imp_r5resp_wide_ager5le80minpn <- hrs_imp_r5resp_wide %>%
   filter(r5age_v2 <= 80) %>%
   left_join(hrs_imp %>% select(HHIDPN, household_min_pn) %>% distinct(),
@@ -193,24 +187,19 @@ sum(hrs_imp_r5resp_wide_ager5le80minpn$r5wtresp)/10 # 42706762
 Hmisc::wtd.mean(hrs_imp_r5resp_wide_ager5le80minpn$r5age_v2,
                 hrs_imp_r5resp_wide_ager5le80minpn$r5wtresp) # 63.96579
 
-
 #---- Save the elements for TMLE ----
 # restrict to age [52, 90) at baseline, add 2022 variables
+# later a sensitivity analysis
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_2000_2022.RData"))
+     file = here::here("data", "analysis_data", "data_for_cluster_ager5le90_2000_2022.RData"))
 
-# Save sens r5age <= 80 data with non-specific dataset name
+# Save r5age <= 80 data with non-specific dataset name
 # r5age [52, 80]
 hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_ager5le80
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_ager5le80_2000_2022.RData"))
 
-# Save sens filter to min person number only with non-specific dataset name
-hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_minpn
-save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_minpn_2000_2022.RData"))
-
-# Save sens filter to [52m\, 80] min person number only with non-specific dataset name
+# Save sens filter to [52, 80] min person number only with non-specific dataset name
 hrs_imp_r5resp_wide <- hrs_imp_r5resp_wide_ager5le80minpn
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
      file = here::here("data", "analysis_data", "data_for_cluster_ager5le80minpn_2000_2022.RData"))
