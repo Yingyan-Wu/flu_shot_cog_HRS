@@ -228,13 +228,13 @@ with(results_po, table(type, imp))
 
 #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_agele80minpn_2000_2022_ot52l80.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_agele80minpn_2000_2022_ot52le80.RData"))
 save(results_po, 
-     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_agele80minpn_2000_2022_ot52l80.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_sens_agele80minpn_2000_2022_ot52le80.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_agele80minpn_2000_2022_ot52l80.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_sens_agele80minpn_2000_2022_ot52le80.RData"))
 results_pe_se_sens3 <- results_pe_se
 results_contrasts_sens3 <- results_contrasts
 results_contrasts_memory_change_sens3 <- results_contrasts_memory_change
@@ -254,7 +254,7 @@ results_pe_se_rubin_sens3 <- results_pe_se_sens3 %>%
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
 saveRDS(results_pe_se_rubin_sens3, 
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_agele80minpn_2000_2022_ot52l80.RDS"))
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_sens_agele80minpn_2000_2022_ot52le80.RDS"))
 
 results_contrasts_rubin_sens3 <- results_contrasts_sens3 %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
@@ -302,8 +302,12 @@ results_pe_se_rubin_sens3 %>%
                 width = 0.8) +
   scale_y_continuous(breaks = seq(-3, 0.5, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 22, by = 2)) +
-  scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
-                     labels = c("Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
+  scale_color_manual(name = NULL,
+                     breaks = c("Continuous flu shot", "Natural course"),
+                     values = c("Natural course" = "#4B4B4B",
+                                "Continuous flu shot" = "#3271AE"),
+                     labels = c("Continuous flu shot" = "Sustained influenza vaccination intervention",
+                                "Natural course" = "Natural course")) +# "#E5A84B",
   # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
   #                    labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
   labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
@@ -317,7 +321,7 @@ results_pe_se_rubin_sens3 %>%
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "sens_agele80minpn_lmtp_traj_SL_memimp_impute_2000_2022_ot52l80.png"), 
+ggsave(here::here("output", "figures", "sens_agele80minpn_lmtp_traj_SL_memimp_impute_2000_2022_ot52le80.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----

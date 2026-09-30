@@ -19,7 +19,7 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Load data ----
-load(here::here("data", "analysis_data", "data_for_cluster_2000_2022.RData"))
+load(here::here("data", "model_results", "wtd_mci_threshold_imp_2016_manly_mainle80.RData"))
 load(here::here("data", "model_results", "lmtp_results_SL_po_2000_2022_ot52l90.RData"))
 waves_fu = 5:16
 
@@ -94,7 +94,7 @@ RD_RR_fmt_table <- RD_RR_risk_mci %>%
 
 writexl::write_xlsx(RD_RR_fmt_table, 
                     here::here("output", "tables", 
-                               "lmtp_RD_RR_SL_2000_2022_memimp_impute_ot52l90.xlsx"))
+                               "ager5l90_lmtp_RD_RR_SL_2000_2022_memimp_impute.xlsx"))
 
 # #---- Figure ----
 # RD_RR_forplot <- RD_RR_risk_mci %>%

@@ -20,8 +20,8 @@ options(sci = 999)
 # 
 # load(here::here("data", "analysis_data", "data_for_cluster_20250809.RData"))
 
-load(here::here("data", "model_results", "wtd_mci_threshold_imp_2016_manly.RData"))
-load(here::here("data", "model_results", "lmtp_results_SL_po_sens_agele80minpn_2000_2022_ot52l80.RData"))
+load(here::here("data", "model_results", "wtd_mci_threshold_imp_2016_manly_mainle80.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_po_sens_agele80minpn_2000_2022_ot52le80.RData"))
 
 waves_fu = 5:16
 #---- Merge Threshold to PO ----
@@ -78,4 +78,4 @@ RD_RR_fmt_table <- RD_RR_risk_mci %>%
 # select(-starts_with(c("pe", "ll", "ul")))
 writexl::write_xlsx(RD_RR_fmt_table, 
                     here::here("output", "tables", 
-                               "sens_agele80minpn_lmtp_RD_RR_SL_2000_2022_memimp_impute_ot52l80.xlsx"))
+                               "sens_agele80minpn_lmtp_RD_RR_SL_2000_2022_memimp_impute_ot52le80.xlsx"))

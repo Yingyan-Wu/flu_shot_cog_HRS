@@ -14,7 +14,7 @@ options(scipen = 999)
 
 #---- Load the data ----
 hrs_imp_r5resp <- readRDS(here::here("data", "analysis_data", 
-                                     "imp_pmm_stacked_outcome_2000_2022_ot52l90.RDS")) %>%
+                                     "imp_pmm_stacked_outcome_2000_2022_ot52l90_restdz.RDS")) %>%
   # restrict to aged <= 80 at baseline
   filter(r5age_v2 <= 80)
 

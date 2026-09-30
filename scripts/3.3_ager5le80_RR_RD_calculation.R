@@ -13,8 +13,8 @@ p_load("here", "readr", "tidyverse", "magrittr", "haven", "labelled",
 options(sci = 999)
 
 #---- Load data ----
-load(here::here("data", "model_results", "data_for_cluster_ager5le80_2000_2022.RData"))
-load(here::here("data", "model_results", "lmtp_results_SL_po_ager5le80_2000_2022_ot52l90.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_ager5le80_2000_2022.RData"))
+load(here::here("data", "model_results", "lmtp_results_SL_po_ager5le80_2000_2022.RData"))
 waves_fu = 5:16
 
 #---- Load HCAP data for weighted age distribution at 2016 ----
@@ -53,6 +53,15 @@ hcap_age %>%
   arrange(desc(prop)) %>%
   print(n = Inf)
 
+# r1age_cat           n   prop
+# <chr>           <int>  <dbl>
+#   1 [65, 70)          826 0.316 
+# 2 [70, 75)          669 0.251 
+# 3 [75, 80)          841 0.173 
+# 4 [80, 85)          613 0.125 
+# 5 [85, 90)          340 0.0752
+# 6 [90, +infinity)   207 0.0598
+
 #---- Check age distribution in year 2016 ----
 hrs_imp_r5resp_wide %>% filter(imp == 1) %>%
   with(., hist(r13age_v2))
@@ -74,6 +83,15 @@ age_mat %>%
   # prop = n()/nrow(age_mat)) %>%
   print(n = Inf)
 
+# age_cat             n   prop
+# <chr>           <int>  <dbl>
+#   1 [65, 70)          822 0.0760
+# 2 [70, 75)         2846 0.235 
+# 3 [75, 80)         4376 0.209 
+# 4 [80, 85)         3777 0.175 
+# 5 [85, 90)         2862 0.152 
+# 6 [90, +infinity)  2973 0.153 
+
 # age 75-80 has the proportion most similar, use age 75-80
 
 #---- Categorize impairment ----
@@ -85,7 +103,7 @@ age_mat %>%
 
 # # 75-79: 9% (6-11) for dementia and 21% (18-24) for MCI
 hrs_age_75_79_id <- hrs_imp_r5resp_wide %>%
-  filter(r13age_v2 >= 75 & r13age_v2 < 80) %>% select(HHIDPN, imp)
+  filter(r13age_v2 >= 75 & r13age_v2 <= 79) %>% select(HHIDPN, imp)
 with(hrs_age_75_79_id, table(imp, useNA = "ifany"))
 mci_p = 0.3
 
@@ -105,14 +123,13 @@ wtd_mci_threshold <-  results_po_75_79 %>%
 
 # Save the threshold
 save(wtd_mci_threshold,
-     file = here::here("data", "model_results", "wtd_mci_threshold_imp_2016_manly.RData"))
+     file = here::here("data", "model_results", "wtd_mci_threshold_imp_2016_manly_mainle80.RData"))
 
 results_po %<>%
   left_join(wtd_mci_threshold, by = "imp") %>%
-  mutate(
-    across(paste0("po_w", waves_fu), function(x) case_when(x <= mci_threshold ~ 1,
-                                                           x > mci_threshold ~ 0),
-           .names = "{col}_mci_pe"))
+  mutate(across(paste0("po_w", waves_fu), function(x) case_when(x <= mci_threshold ~ 1,
+                                                                x > mci_threshold ~ 0),
+                .names = "{col}_mci_pe"))
 
 # # Sanity check
 # results_po %>%
@@ -122,7 +139,7 @@ results_po %<>%
 table(results_po$po_w13_mci_pe)
 
 # Save the results
-saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks_2000_2020_ot52l90.RDS"))
+saveRDS(results_po, here::here("data", "model_results", "lmtp_results_mci_risks_2000_2020_ot52le80.RDS"))
 
 RD_RR_risk_mci <- results_po %>%
   select(type, imp, contains("_mci")) %>%
@@ -165,4 +182,4 @@ RD_RR_fmt_table <- RD_RR_risk_mci %>%
 # select(-starts_with(c("pe", "ll", "ul")))
 writexl::write_xlsx(RD_RR_fmt_table, 
                     here::here("output", "tables", 
-                               "ager5le80_lmtp_RD_RR_SL_2000_2022_memimp_impute_ot52l90.xlsx"))
+                               "ager5le80_lmtp_RD_RR_SL_2000_2022_memimp_impute.xlsx"))

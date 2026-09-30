@@ -35,10 +35,8 @@ for (s in scenarios_res){
 }
 
 # Work on imputations with full results
-full_imps <- 9
+full_imps <- 1:10
 full_waves <- 5:16
-# full_imps <- 1:10
-# full_waves <- 5:16
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -191,7 +189,7 @@ results_contrasts_memory_change <- results_contrasts %>%
 # hist(y_w5_1sus_1$weights)
 # hist(y_w5_1sus_3$weights)
 
-load(here::here("data", "analysis_data", "data_for_cluster_2000_2022.RData"))
+load(here::here("data", "analysis_data", "data_for_cluster_ager5l90_2000_2022.RData"))
 
 # The outcome_reg is organized by the order of participants in the input data
 # tested in later chunk
@@ -326,8 +324,8 @@ results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
 #---- Table and plots ----
 Hmisc::wtd.mean(hrs_imp_r5resp_wide$r5memimp_stdz, 
                 weights = hrs_imp_r5resp_wide$r5wtresp, na.rm= T)
-# -3.133457e-15
-mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.123286
+# -0.2062548
+mean(hrs_imp_r5resp_wide$r5memimp_stdz) #-0.358045
 
 ##---- Trajectory plot ----
 results_pe_se_rubin <-
@@ -353,8 +351,12 @@ results_pe_se_rubin %>%
   scale_y_continuous(breaks = seq(-3, 0, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 24, by = 2)) +
   # scale_x_continuous(breaks = seq(1996, 2020, by = 2)) +
-  scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
-                     labels = c("Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
+  scale_color_manual(name = NULL,
+                     breaks = c("Continuous flu shot", "Natural course"),
+                     values = c("Natural course" = "#4B4B4B",
+                                "Continuous flu shot" = "#3271AE"),
+                     labels = c("Continuous flu shot" = "Sustained influenza vaccination intervention",
+                                "Natural course" = "Natural course")) +# "#E5A84B",
   # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
   #                    labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
   labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
@@ -379,7 +381,7 @@ results_pe_se_rubin %>%
 #       strip.text = element_text(size = 16, color = "black"))
 # ggsave(here::here("output", "figures", "lmtp_traj_SL_ahead_hrs_memimp_impute_SER.png"),
 #        device = "png", width = 9, height = 7, units = "in", dpi = 600)
-ggsave(here::here("output", "figures", "lmtp_traj_SL_2000_2020_memimp_impute.png"),
+ggsave(here::here("output", "figures", "agrer5l90_lmtp_traj_SL_2000_2020_memimp_impute.png"),
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
@@ -407,7 +409,7 @@ results_pe_se_year_table <- results_pe_se_rubin %>%
 
 results_pe_se_year_table %>%
   writexl::write_xlsx(here::here("output", "tables",
-                                 "lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
+                                 "ager5l90_lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
 results_contrasts_year_memory_change_table <- results_contrasts_memory_change_rubin %>%
@@ -426,4 +428,4 @@ results_contrasts_year_memory_change_table %>%
                  "Sustained - natural course (95% CI)")) %>%
   writexl::write_xlsx(
     here::here("output", "tables",
-               "lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))
+               "ager5l90_lmtp_contrasts_SL_2000_2022_memimp_impute.xlsx"))

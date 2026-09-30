@@ -191,7 +191,7 @@ Hmisc::wtd.mean(hrs_imp_r5resp_wide_ager5le80minpn$r5age_v2,
 # restrict to age [52, 90) at baseline, add 2022 variables
 # later a sensitivity analysis
 save(hrs_imp_r5resp_wide, bl_vars, L_allwaves, trt_allwaves, C_allwaves, 
-     file = here::here("data", "analysis_data", "data_for_cluster_ager5le90_2000_2022.RData"))
+     file = here::here("data", "analysis_data", "data_for_cluster_ager5l90_2000_2022.RData"))
 
 # Save r5age <= 80 data with non-specific dataset name
 # r5age [52, 80]

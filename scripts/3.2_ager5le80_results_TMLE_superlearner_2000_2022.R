@@ -34,10 +34,8 @@ for (s in scenarios_res){
 }
 
 # Work on imputations with full results
-full_imps <- c(6, 7)
+full_imps <- 1:10
 full_waves <- 5:16
-# full_imps <- 1:10
-# full_waves <- 5:16
 
 # lmtp_tmle function returned these values for every participant
 # 1. eif
@@ -230,19 +228,16 @@ with(results_po, table(type, imp))
 
 #---- Save the cleaned data results ----
 save(results_pe_se, results_contrasts, results_contrasts_memory_change,
-     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_ager5le80_2000_2022_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_ager5le80_2000_2022.RData"))
 save(results_po, 
-     file = here::here("data", "model_results", "lmtp_results_SL_po_ager5le80_2000_2022_ot52l90.RData"))
+     file = here::here("data", "model_results", "lmtp_results_SL_po_ager5le80_2000_2022.RData"))
 
 #---- Rubin's rule ----
 ##---- PE CI ----
-load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_ager5le80_2000_2022_ot52l90.RData"))
-results_pe_se_sens <- results_pe_se
-results_contrasts_sens <- results_contrasts
-results_contrasts_memory_change_sens <- results_contrasts_memory_change
+load(here::here("data", "model_results", "lmtp_results_SL_pe_se_contrast_ager5le80_2000_2022.RData"))
 num_imp <- length(full_imps)
 
-results_pe_se_rubin_sens <- results_pe_se_sens %>%
+results_pe_se_rubin <- results_pe_se %>%
   group_by(type, wave) %>%
   reframe(
     point_est_rubin = mean(point_est),
@@ -255,10 +250,10 @@ results_pe_se_rubin_sens <- results_pe_se_sens %>%
          ul_rubin = point_est_rubin + qnorm(0.975)*se_rubin,
          survey_year = (wave - 5)*2 + 2000,
          fu_year = survey_year - 2000)
-saveRDS(results_pe_se_rubin_sens, 
-        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_ager5le80_2000_2022_ot52l90.RDS"))
+saveRDS(results_pe_se_rubin, 
+        here::here("data", "model_results", "lmtp_results_SL_rubin_forplot_ager5le80_2000_2022.RDS"))
 
-results_contrasts_rubin_sens <- results_contrasts_sens %>%
+results_contrasts_rubin <- results_contrasts %>%
   group_by(intervention_index, intervention_ref, wave_index, wave_ref) %>%
   reframe(
     point_est_rubin = mean(point_est),
@@ -272,7 +267,7 @@ results_contrasts_rubin_sens <- results_contrasts_sens %>%
          survey_year_index = (wave_index - 5)*2 + 2000,
          fu_year_index = survey_year_index - 2000)
 
-results_contrasts_memory_change_rubin_sens <- results_contrasts_memory_change_sens %>%
+results_contrasts_memory_change_rubin <- results_contrasts_memory_change %>%
   pivot_longer(cols = -c(imp, wave_index),
                names_to = c(".value", "intervention"),
                names_pattern = "(.*)_(.*)") %>%
@@ -291,7 +286,7 @@ results_contrasts_memory_change_rubin_sens <- results_contrasts_memory_change_se
 
 #---- Table and plots ----
 ##---- Trajectory plot ----
-results_pe_se_rubin_sens %>%
+results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
   mutate(type = factor(type, levels = c("Natural course", "Continuous flu shot"))) %>%
   # mutate(type = factor(type, levels = c("Continuous no flu shot", "Natural course", "Continuous flu shot"))) %>%
@@ -304,11 +299,15 @@ results_pe_se_rubin_sens %>%
                 width = 0.8) +
   scale_y_continuous(breaks = seq(-3, 0.5, by = 0.2)) +
   scale_x_continuous(breaks = seq(0, 22, by = 2)) +
-  scale_color_manual(name = NULL, values = c("#4B4B4B", "#3271AE"),
-                     labels = c("Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
+  scale_color_manual(name = NULL,
+                     breaks = c("Continuous flu shot", "Natural course"),
+                     values = c("Natural course" = "#4B4B4B",
+                                "Continuous flu shot" = "#3271AE"),
+                     labels = c("Continuous flu shot" = "Sustained influenza vaccination intervention",
+                                "Natural course" = "Natural course")) +# "#E5A84B",
   # scale_color_manual(name = NULL, values = c("#F7C173", "#4B4B4B", "#3271AE"),
-  #                    labels = c("Continuous no flu shot", "Natural course", "Hypothetical flu shot intervention")) +# "#E5A84B",
-  labs(# title = "Memory score trajectories under the hypothetical flu shot intervention and natural course",
+  #                    labels = c("Continuous no flu shot", "Natural course", "Sustained influenza vaccination intervention")) +# "#E5A84B",
+  labs(# title = "Memory score trajectories under the Sustained influenza vaccination intervention and natural course",
     x = "Follow-up years",
     y = "Memory z-score") +
   theme_bw() +
@@ -319,13 +318,13 @@ results_pe_se_rubin_sens %>%
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_text(size = 12, color = "black"),
         legend.text = element_text(size = 12, color = "black"))
-ggsave(here::here("output", "figures", "ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_2022_ot52l90.png"), 
+ggsave(here::here("output", "figures", "ager5le80_lmtp_traj_SL_2000_memimp_impute_2000_2022.png"), 
        device = "png", width = 9, height = 7, units = "in", dpi = 300)
 
 ##---- Trajectory table ----
-results_pe_se_year_table_sens <- results_pe_se_rubin_sens %>%
+results_pe_se_year_table <- results_pe_se_rubin %>%
   filter(type != "Continuous no flu shot") %>%
-  bind_rows(results_contrasts_rubin_sens %>% 
+  bind_rows(results_contrasts_rubin %>% 
               filter(intervention_index == "Continuous flu shot",
                      intervention_ref == "Natural course",
                      wave_index == wave_ref) %>%
@@ -345,13 +344,13 @@ results_pe_se_year_table_sens <- results_pe_se_rubin_sens %>%
   pivot_wider(names_from = type, values_from = pe_ci, 
               names_glue = "{type} (95% CI)")
 
-results_pe_se_year_table_sens %>%
+results_pe_se_year_table %>%
   writexl::write_xlsx(here::here("output", "tables", 
                                  "ager5le80_lmtp_pe_SL_2000_2022_memimp_impute.xlsx"))
 
 ##---- Contrast table ----
-results_contrasts_year_memory_change_table_sens <- 
-  results_contrasts_memory_change_rubin_sens %>%
+results_contrasts_year_memory_change_table <- 
+  results_contrasts_memory_change_rubin %>%
   mutate(across(c("pe_rubin", "ll_rubin", "ul_rubin"), 
                 ~sprintf(., fmt = '%#.2f'))) %>%
   mutate(pe_ci = paste0(pe_rubin, " (", ll_rubin, ", ", ul_rubin, ")")) %>%
@@ -361,7 +360,7 @@ results_contrasts_year_memory_change_table_sens <-
               names_glue = "{.value}_{intervention}") %>%
   select(fu_year_index, pe_ci_nc, pe_ci_1sus, pe_ci_1susnc)
 
-results_contrasts_year_memory_change_table_sens %>%
+results_contrasts_year_memory_change_table %>%
   set_colnames(c("Follow up year", 
                  "Natural course (95% CI)", "Sustained flu shot (95% CI)", 
                  "Sustained - natural course (95% CI)")) %>%
